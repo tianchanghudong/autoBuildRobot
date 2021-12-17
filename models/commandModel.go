@@ -25,9 +25,8 @@ const (
 	CommandType_UpdateAndRestartExtranetTestServer = 12 //更新并重启外网测试服
 	CommandType_ListSvnLog                         = 13 //打印svn日志
 	CommandType_UpdateUser                         = 14 //更新用户
-	CommandType_NoticeToDo                         = 15 //代办事项提醒
-	CommandType_CloseRobot                         = 16 //关闭机器人
-	CommandType_Max                                = 17
+	CommandType_CloseRobot                         = 15 //关闭机器人
+	CommandType_Max                                = 16
 )
 
 //自动构建指令
@@ -75,7 +74,6 @@ func init() {
 	commandName[CommandType_UpdateAndRestartExtranetTestServer] = "更新外网测试服"
 	commandName[CommandType_ListSvnLog] = "输出svn日志"
 	commandName[CommandType_UpdateUser] = "更新用户"
-	commandName[CommandType_NoticeToDo] = "代办事项提醒"
 	commandName[CommandType_UpdateTable] = "更新表格"
 	commandName[CommandType_CloseRobot] = "关闭自动构建机器人"
 
@@ -93,7 +91,6 @@ func init() {
 	commandHelpTips[CommandType_UpdateAndRestartExtranetTestServer] = fmt.Sprintf("例：【%s：外网分支】，其中内网分支是svn工程配置的工程名",commandName[CommandType_UpdateAndRestartExtranetTestServer])
 	commandHelpTips[CommandType_ListSvnLog] = fmt.Sprintf("例：【%s：开发分支】，其中开发分支是svn工程配置的工程名",commandName[CommandType_ListSvnLog])
 	commandHelpTips[CommandType_UpdateUser] = GetUserConfigHelp()
-	commandHelpTips[CommandType_NoticeToDo] = ""
 	commandHelpTips[CommandType_UpdateTable] = fmt.Sprintf("例：【%s：研发表格】，其中研发表格是svn工程配置的工程名",commandName[CommandType_UpdateTable])
 	commandHelpTips[CommandType_CloseRobot] = ""
 }

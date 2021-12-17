@@ -54,7 +54,6 @@ func init() {
 
 	models.AddCommand(models.CommandType_UpdateUser, updateUserCommand)
 	models.AddCommand(models.CommandType_ListSvnLog, listAllSvnLog)
-	models.AddCommand(models.CommandType_NoticeToDo, NoticeToDoCommand)
 	models.AddCommand(models.CommandType_CloseRobot, shellCommand)
 
 	//定时关闭机器人（mac要定时关机，但是如果没有结束机器人会卡住关机）
@@ -802,13 +801,6 @@ func listAllSvnLog(command models.AutoBuildCommand) (result string) {
 	}
 	models.SaveSvnLogTime(command.ProjectName, svnProjectName,endTimeStamp)
 	return
-}
-
-//代办事项
-//1、添加代办事项 xxx时间提醒我xxx
-//2、删除代办事项 取消xxx
-func NoticeToDoCommand(command models.AutoBuildCommand)(result string){
-	return ""
 }
 
 //更新构建版本号
