@@ -26,7 +26,8 @@ const (
 	CommandType_ListSvnLog                         = 13 //打印svn日志
 	CommandType_UpdateUser                         = 14 //更新用户
 	CommandType_CloseRobot                         = 15 //关闭机器人
-	CommandType_Max                                = 16
+	CommandType_ExcuteSeriesCommand                = 16 //执行多条指令
+	CommandType_Max                                = 17
 )
 
 //自动构建指令
@@ -76,6 +77,7 @@ func init() {
 	commandName[CommandType_UpdateUser] = "更新用户"
 	commandName[CommandType_UpdateTable] = "更新表格"
 	commandName[CommandType_CloseRobot] = "关闭自动构建机器人"
+	commandName[CommandType_ExcuteSeriesCommand] = "执行多条指令"
 
 	//初始化指令帮助提示
 	commandHelpTips[CommandType_UpdateProjectConfig] = GetProjectConfigHelp()
@@ -93,6 +95,7 @@ func init() {
 	commandHelpTips[CommandType_UpdateUser] = GetUserConfigHelp()
 	commandHelpTips[CommandType_UpdateTable] = fmt.Sprintf("例：【%s：研发表格】，其中研发表格是svn工程配置的工程名",commandName[CommandType_UpdateTable])
 	commandHelpTips[CommandType_CloseRobot] = ""
+	commandHelpTips[CommandType_ExcuteSeriesCommand] = fmt.Sprintf("例：【%s:分支合并：开发分支合并到策划分支||更新表格：研发表格||分支合并：策划分支合并到测试分支】，冒号后为多条指令集合，每条指令用双竖线||分割",)
 }
 
 //添加指令
@@ -184,14 +187,10 @@ func AnalysisCommand(rawCommand string) (ok bool, autoBuildCommand AutoBuildComm
 
 //获取指令名字
 func GetCommandNameByType(commandType int) string {
-	autoBuildCommandRWLock.RLock()
-	defer autoBuildCommandRWLock.RUnlock()
-
-	//获取指令名字
-	if command, ok := autoBuildCommandMap[commandType]; ok {
-		return command.Name
+	if commandType < CommandType_Help || commandType >= CommandType_Max{
+		return "不存在指令类型：" + strconv.Itoa(commandType)
 	}
-	return "不存在指令类型：" + strconv.Itoa(commandType)
+	return commandName[commandType]
 }
 
 //判断指令参数是否帮助

@@ -55,6 +55,7 @@ func init() {
 	models.AddCommand(models.CommandType_UpdateUser, updateUserCommand)
 	models.AddCommand(models.CommandType_ListSvnLog, listAllSvnLog)
 	models.AddCommand(models.CommandType_CloseRobot, shellCommand)
+	models.AddCommand(models.CommandType_ExcuteSeriesCommand, nullCommandFunc)
 
 	//定时关闭机器人（mac要定时关机，但是如果没有结束机器人会卡住关机）
 	if closeRobotTime < 0 || runtime.GOOS != "darwin" {
@@ -85,65 +86,95 @@ func closeAutoBuildByTime() {
 }
 
 //收到指令
-func RecvCommand(projectName,executor,commandMsg,webHook string,sendMsgFunc models.AutoBuildResultFunc) {
-	isError := false
-	result := fmt.Sprintf("正在执行%s...",commandMsg)
+func RecvCommand(projectName,executor,_commandMsg,webHook string,sendMsgFunc models.AutoBuildResultFunc) {
 	phoneNum := models.GetUserPhone(projectName,executor)
 
 	//处理异常
 	defer func() {
 		if r := recover(); r != nil {
-			result = fmt.Errorf("程序异常:%v,大概率网络异常，重试一次试试！", r).Error()
+			result := fmt.Errorf("程序异常:%v,大概率网络异常，重试一次试试！", r).Error()
 			sendMsgFunc(fmt.Sprintf("builder:%s\ninfo:%s", executor, result), phoneNum)
 		}
 	}()
 
-	//解析指令
-	ok, autoBuildCommand := models.AnalysisCommand(commandMsg)
-	autoBuildCommand.WebHook = webHook
-	autoBuildCommand.ResultFunc = sendMsgFunc
-	autoBuildCommand.ProjectName = projectName
-	if !ok {
-		result = "不存在指令！请输入正确指令：\n"
-		isError = true
-	}
-
-	//判断是否有权限
-	isHavePermission,tips := models.JudgeIsHadPermission(autoBuildCommand.CommandType, projectName,executor,autoBuildCommand.CommandParams)
-	if !isHavePermission{
-		result = tips
-		phoneNum += "," + models.GetProjectManagerPhone(projectName)
-		sendMsgFunc(fmt.Sprintf("builder:%s\ninfo:%s", executor, result), phoneNum)
-		return
-	}
-
-	//先通知构建群操作结果
-	phone := ""
-	if isError {
-		//有错误才要@回操作者
-		phone = phoneNum
-	}
-	sendMsgFunc(fmt.Sprintf("builder:%s\ninfo:%s", executor, result), phone)
-
-	//执行指令
-	commandResult := ""
-	if models.JudgeIsHelpParam(autoBuildCommand.CommandParams){
-		//如果参数是帮助，则返回指令帮助信息
-		commandResult = autoBuildCommand.HelpTips
+	//如果有多条指令，逐条执行
+	commandMsgList := make([]string,0)
+	seriesCommandName := models.GetCommandNameByType(models.CommandType_ExcuteSeriesCommand)
+	if strings.Contains(_commandMsg,seriesCommandName){
+		//分割参数的冒号可能是中文或者英文，简单处理直接两种情况都替换一遍
+		_commandMsg = strings.Replace(_commandMsg, " ", "", -1)
+		_commandMsg = strings.Replace(_commandMsg,seriesCommandName + ":","",1)
+		_commandMsg = strings.Replace(_commandMsg,seriesCommandName + "：","",1)
+		if models.JudgeIsHelpParam(_commandMsg){
+			//特殊处理帮助参数
+			helpResult := fmt.Sprintf("例：【%s:分支合并：开发分支合并到策划分支||更新表格：研发表格||分支合并：策划分支合并到测试分支】，冒号后为多条指令集合，每条指令用双竖线||分割",seriesCommandName)
+			sendMsgFunc(fmt.Sprintf("builder:%s\ninfo:%s", executor, helpResult), phoneNum)
+			return
+		}else{
+			//返回指令执行结果
+			commandMsgList = append(commandMsgList,strings.Split(_commandMsg,"||")...)
+		}
 	}else{
-		//返回指令执行结果
-		commandResult = autoBuildCommand.Func(autoBuildCommand)
+		commandMsgList = append(commandMsgList,_commandMsg)
 	}
 
-	//发送执行结果
-	sendMsgFunc(fmt.Sprintf("builder:%s\ncommand:%s\ninfo:%s", executor, autoBuildCommand.Name, commandResult), phoneNum)
+	//解析指令
+	for _,commandMsg := range commandMsgList{
+		isError := false
+		result := fmt.Sprintf("正在执行%s...",commandMsg)
+		ok, autoBuildCommand := models.AnalysisCommand(commandMsg)
 
-	//检测是否有svn冲突（如果是合并，且有冲突则通知管理员）
-	checkSVNConflictAndNotifyManager(autoBuildCommand)
+		autoBuildCommand.WebHook = webHook
+		autoBuildCommand.ResultFunc = sendMsgFunc
+		autoBuildCommand.ProjectName = projectName
+		if !ok {
+			//继续往下执行返回帮助
+			result = "不存在指令！请输入正确指令：\n"
+			isError = true
+		}
+
+		//判断是否有权限
+		isHavePermission,tips := models.JudgeIsHadPermission(autoBuildCommand.CommandType, projectName,executor,autoBuildCommand.CommandParams)
+		if !isHavePermission{
+			result = tips
+			phoneNum += "," + models.GetProjectManagerPhone(projectName)
+			sendMsgFunc(fmt.Sprintf("builder:%s\ninfo:%s", executor, result), phoneNum)
+			return
+		}
+
+		//先通知构建群操作结果
+		phone := ""
+		if isError {
+			//有错误才要@回操作者
+			phone = phoneNum
+		}
+		sendMsgFunc(fmt.Sprintf("builder:%s\ninfo:%s", executor, result), phone)
+
+		//执行指令
+		commandResult := ""
+		if models.JudgeIsHelpParam(autoBuildCommand.CommandParams){
+			//如果参数是帮助，则返回指令帮助信息
+			commandResult = autoBuildCommand.HelpTips
+		}else{
+			//返回指令执行结果
+			commandResult = autoBuildCommand.Func(autoBuildCommand)
+		}
+
+		//发送执行结果
+		sendMsgFunc(fmt.Sprintf("builder:%s\ncommand:%s\ninfo:%s", executor, autoBuildCommand.Name, commandResult), phoneNum)
+
+		//检测是否有svn冲突（如果是合并，且有冲突则通知管理员）
+		isError = checkSVNConflictAndNotifyManager(autoBuildCommand)
+		if isError{
+			//如果有错误则中断指令
+			break
+		}
+	}
+
 }
 
 //检测冲突并且通知管理员
-func checkSVNConflictAndNotifyManager(command models.AutoBuildCommand) {
+func checkSVNConflictAndNotifyManager(command models.AutoBuildCommand)(isConflict bool) {
 	if command.CommandType != models.CommandType_SvnMerge {
 		return
 	}
@@ -163,8 +194,12 @@ func checkSVNConflictAndNotifyManager(command models.AutoBuildCommand) {
 	log.Info("检测冲突完毕：" + checkMergeCommand)
 	if checkMergeResult != "" {
 		mergeErrorTips := "合并冲突或者其他问题，需要手动处理！！"
-		command.ResultFunc(fmt.Sprintf("command:%s\ninfo:%s", command.Name, mergeErrorTips), models.GetProjectManagerPhone(command.ProjectName))
+		managerPhone := models.GetProjectManagerPhone(command.ProjectName)
+		log.Error(command.ProjectName +",managerPhone:"+managerPhone)
+		command.ResultFunc(fmt.Sprintf("command:%s\ninfo:%s", command.Name, mergeErrorTips),managerPhone )
+		return true
 	}
+	return
 }
 
 //执行帮助指令
@@ -816,4 +851,9 @@ func UpdateBuildVerson(command models.AutoBuildCommand) (result string) {
 		result = "更新构建版本号成功"
 	}
 	return
+}
+
+//空方法
+func nullCommandFunc(command models.AutoBuildCommand)(result string){
+	return "没有实现的方法，不应该走到这里："+command.Name
 }
