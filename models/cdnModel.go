@@ -3,6 +3,7 @@ package models
 import (
 	"autobuildrobot/log"
 	"autobuildrobot/tool"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -159,20 +160,19 @@ func GetCdnConfigHelp() string {
 
 //获取CDN配置数据
 func GetCdnData(projectName, branchName string) (
-	result, cdnType, urlOfBucket, bucketName, accessKeyID, accessKeySecret,backupPath string, resPaths []string) {
+	err error, cdnType, urlOfBucket, bucketName, accessKeyID, accessKeySecret,backupPath string, resPaths []string) {
 	cdnDataLock.Lock()
 	defer cdnDataLock.Unlock()
 	if branchName == "" {
-		result = "获取cdn地址失败，分支名不能为空！"
+		err = errors.New("获取cdn地址失败，分支名不能为空！")
 		return
 	}
 	_, projectCdnMap = getProjectCdnsData(projectName)
 	if _branchModel, ok := projectCdnMap[branchName]; ok {
-		return "", _branchModel.CdnType, _branchModel.EndpointOfBucket, _branchModel.BucketName,
+		return nil, _branchModel.CdnType, _branchModel.EndpointOfBucket, _branchModel.BucketName,
 			_branchModel.AccessKeyID, _branchModel.AccessKeySecret,_branchModel.BackupPath, _branchModel.ResPaths
 	} else {
-		result = "cdn配置不存在，请添加！"
-		log.Error(branchName, result)
+		err = errors.New("cdn配置不存在，请添加！")
 		return
 	}
 	return

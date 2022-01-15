@@ -4,6 +4,7 @@ import (
 	"autobuildrobot/log"
 	"autobuildrobot/models"
 	"autobuildrobot/tool"
+	"errors"
 	"fmt"
 	"github.com/astaxie/beego"
 	"io/ioutil"
@@ -152,12 +153,18 @@ func RecvCommand(projectName,executor,_commandMsg,webHook string,sendMsgFunc mod
 
 		//执行指令
 		commandResult := ""
+
 		if models.JudgeIsHelpParam(autoBuildCommand.CommandParams){
 			//如果参数是帮助，则返回指令帮助信息
 			commandResult = autoBuildCommand.HelpTips
 		}else{
 			//返回指令执行结果
-			commandResult = autoBuildCommand.Func(autoBuildCommand)
+			var err error
+			commandResult,err = autoBuildCommand.Func(autoBuildCommand)
+			if err != nil{
+				isError = true
+				commandResult = err.Error()
+			}
 		}
 
 		//发送执行结果
@@ -203,65 +210,64 @@ func checkSVNConflictAndNotifyManager(command models.AutoBuildCommand)(isConflic
 }
 
 //执行帮助指令
-func helpCommand(command models.AutoBuildCommand) string {
+func helpCommand(command models.AutoBuildCommand) (string,error) {
 	help := "指令如下：\n"
 	help += models.GetCommandHelpInfo()
 	help += "\n输入指令名字或者编号选择操作，指令后加冒号和参数如【更新表格：研发表格】\n如果不清楚参数则输入帮助或者help会输出指令帮助提示如【更新表格：帮助】\n如果不带参数则会输出所有已有数据如【更新用户】则会输出所有用户信息"
-	return help
+	return help,nil
 }
 
 //执行更新项目配置指令
-func updateProjectConfigCommand(command models.AutoBuildCommand) string {
+func updateProjectConfigCommand(command models.AutoBuildCommand) (string,error) {
 	projectConfig := command.CommandParams
 	if projectConfig == "" {
 		//如果为空则列出项目配置
-		return models.GetProjectData(command.ProjectName)
+		return models.GetProjectData(command.ProjectName),nil
 	}else {
 		return models.UpdateProject(command.ProjectName, projectConfig)
 	}
 }
 
 //执行更新svn工程配置指令
-func updateSvnProjectConfigCommand(command models.AutoBuildCommand)  string {
+func updateSvnProjectConfigCommand(command models.AutoBuildCommand)  (string,error) {
 	svnProjectConfig := command.CommandParams
 	if svnProjectConfig == "" {
 		//如果为空则列出所有分支
-		return models.GetAllSvnProjectsDataByProject(command.ProjectName)
+		return models.GetAllSvnProjectsDataByProject(command.ProjectName),nil
 	} else {
 		//更新svn工程数据
-		return models.UpdateSvnProject(command.ProjectName, svnProjectConfig)
+		return models.UpdateSvnProject(command.ProjectName, svnProjectConfig),nil
 	}
 }
 
 //更新cdn配置
-func updateCdnConfigCommand(command models.AutoBuildCommand)(result string){
+func updateCdnConfigCommand(command models.AutoBuildCommand)(string,error){
 	cdnConfig := command.CommandParams
 	if cdnConfig == "" {
 		//如果为空则列出所有cdn配置
-		return models.GetAllCdnDataOfOneProject(command.ProjectName)
+		return models.GetAllCdnDataOfOneProject(command.ProjectName),nil
 	} else {
 		//更新cdn配置
-		return models.UpdateCdn(command.ProjectName, cdnConfig)
+		return models.UpdateCdn(command.ProjectName, cdnConfig),nil
 	}
 }
 
 //执行shell指令
-func shellCommand(command models.AutoBuildCommand) (result string) {
+func shellCommand(command models.AutoBuildCommand) (string,error) {
 	//获取指令
 	commandTxt := command.Command
 	commandParams := command.CommandParams
 	project1, project2, errSvnProject := models.GetSvnProjectName(command.CommandParams, command.CommandType)
 	if nil != errSvnProject {
-		return errSvnProject.Error()
+		return "",errSvnProject
 	}
 	err,shellParams := models.GetProjectShellParams(command.ProjectName, project1, project2,commandParams,command.WebHook, command.CommandType)
 	if nil != err{
-		return err.Error()
+		return "",err
 	}
 	commandTxt = fmt.Sprintf("cd %s;chmod +x %s.sh;./%s.sh %s",shellPath, commandTxt, commandTxt,shellParams)
 	if commandTxt == "" {
-		result = "shellCommand,指令为空，请检查！！！"
-		return
+		return "",errors.New("shellCommand,指令为空，请检查！！！")
 	}
 
 	//执行指令
@@ -271,6 +277,7 @@ func shellCommand(command models.AutoBuildCommand) (result string) {
 	if runtime.GOOS == "windows" {
 		commandName = winGitPath
 	}
+	result := ""
 	tool.ExecCommand(commandName, commandTxt, func(resultLine string) {
 		if strings.Contains(resultLine, "执行完毕！") {
 			resultLine = strings.Replace(resultLine,"执行完毕！",fmt.Sprintf("执行【%s:%s】完毕！",command.Name,command.CommandParams),-1)
@@ -286,92 +293,81 @@ func shellCommand(command models.AutoBuildCommand) (result string) {
 			}
 		}
 	})
-	return
+	return result,nil
 }
 
 //输出热更资源列表
-func printHotfixResList(command models.AutoBuildCommand)(result string){
+func printHotfixResList(command models.AutoBuildCommand)(string,error){
 	//获取项目信息
 	svnProjectName,_,err := models.GetSvnProjectName(command.CommandParams, command.CommandType)
 	if nil != err{
-		return err.Error()
+		return "",err
 	}
 	projectPath := models.GetSvnProjectPath(command.ProjectName,svnProjectName)
 
 	//再获取cdn配置
-	_result, cdnType, urlOfBucket, bucketName, accessKeyID, accessKeySecret, backupPath, resPaths := models.GetCdnData(command.ProjectName,svnProjectName)
-	if _result != ""{
-		return _result
+	err, cdnType, urlOfBucket, bucketName, accessKeyID, accessKeySecret, _, resPaths := models.GetCdnData(command.ProjectName,svnProjectName)
+	if nil != err{
+		return "",err
 	}
 
 	//判断本地files.txt是否存在
 	localFilesPath := path.Join(projectPath, models.CLIENTLOCALRESPATH, models.CLIENTHOTFIXEDFILENAME)
 	if !tool.CheckFileIsExist(localFilesPath){
-		return "项目不存在files.txt文件"
-	}
-
-	//判断备份目录是否有files.txt，没有则拷贝
-	backupFilesPath := path.Join(backupPath,models.CLIENTHOTFIXEDFILENAME)
-	if !tool.CheckFileIsExist(backupFilesPath){
-		_,errCopy := tool.CopyFile(backupFilesPath, localFilesPath)
-		if nil == errCopy{
-			result += fmt.Sprintf("不存在%s文件,已拷贝本地最新files.txt\n",backupFilesPath)
-		}else{
-			result += fmt.Sprintf("不存在%s文件且拷贝本地文件失败，错误原因：%s\n",backupFilesPath,errCopy.Error())
-		}
+		return "",errors.New("项目不存在files.txt文件")
 	}
 
 	//获取cdn对象
 	cdnErr,cdnClient := GetCdnClient(cdnType,urlOfBucket,bucketName,accessKeyID,accessKeySecret)
 	if nil != cdnErr{
-		return cdnErr.Error()
+		return "",cdnErr
 	}
 
 	//判断cdn服务器上目标files.txt是否存在
 	isNotExistUpdateFiles := false
+	result := ""
 	for _,resPath := range resPaths{
 		remoteHotfixedFilesPath := path.Join(resPath, models.CLIENTHOTFIXEDFILENAME)
 		isExist,fileExistErr := cdnClient.IsExistFile(remoteHotfixedFilesPath)
 		if nil != fileExistErr{
-			result += fmt.Sprintf("判断测试files.txt文件是否存在错误，资源路径：%s,错误原因：%s",remoteHotfixedFilesPath,fileExistErr.Error())
-			return
+			log.Error(fmt.Sprintf("判断测试files.txt文件是否存在错误，资源路径：%s,错误原因：%s",remoteHotfixedFilesPath,fileExistErr.Error()))
+			return "",fileExistErr
 		}
 
 		//如果不存在则上传本地files
-		if !isExist{
-			//上传本地文件到测试地址
-			uploadFileErr := cdnClient.UploadFile(localFilesPath,remoteHotfixedFilesPath)
-			if nil == uploadFileErr{
-				result += fmt.Sprintf("cdn服务器不存在%s文件,已上传本地文件到cdn服务器\n",remoteHotfixedFilesPath)
-			}else{
-				result += fmt.Sprintf("cdn服务器不存在%s文件且上传本地文件失败，错误原因：%s\n",remoteHotfixedFilesPath,uploadFileErr.Error())
-			}
-			isNotExistUpdateFiles = true
+		if isExist{
+			continue
 		}
+		uploadFileErr := cdnClient.UploadFile(localFilesPath,remoteHotfixedFilesPath)
+		if nil == uploadFileErr{
+			result += fmt.Sprintf("cdn服务器不存在%s文件,已上传本地文件到cdn服务器\n",remoteHotfixedFilesPath)
+		}else{
+			return "",errors.New(fmt.Sprintf("cdn服务器不存在%s文件且上传本地文件失败，错误原因：%s\n",remoteHotfixedFilesPath,uploadFileErr.Error()))
+		}
+		isNotExistUpdateFiles = true
 	}
 	if isNotExistUpdateFiles {
 		//不存在files.txt，都是最新的，没有需要热更的东西
-		return
+		return "",nil
 	}
 
 	//获取本地files.txt文件
 	localFile, err := os.Open(localFilesPath)
 	if err != nil {
 		fmt.Println("读取项目本地file.txt失败 os.Open:", err)
-		return "读取项目本地file.txt失败 os.Open:" + err.Error()
+		return "",errors.New("读取项目本地file.txt失败 os.Open:" + err.Error())
 	}
 	localFileByts, err := ioutil.ReadAll(localFile)
 	localFile.Close()
 	if err != nil {
-		return "读取file.txt失败 ioutil.ReadAll:" + err.Error()
+		return "",errors.New("读取file.txt失败 ioutil.ReadAll:" + err.Error())
 	}
 
  	//获取服务器测试热更files.txt
 	remoteTestHotfixedFilesPath := path.Join(resPaths[0], models.CLIENTHOTFIXEDFILENAME)
 	testFileErr,testFiles := cdnClient.DownFile(remoteTestHotfixedFilesPath)
 	if nil != testFileErr{
-		result = fmt.Sprintf("获取测试files.txt文件失败，资源路径：%s,错误原因：%s",remoteTestHotfixedFilesPath,testFileErr.Error())
-		return
+		return "",errors.New(fmt.Sprintf("获取测试files.txt文件失败，资源路径：%s,错误原因：%s",remoteTestHotfixedFilesPath,testFileErr.Error()))
 	}
 
 	//根据本地和服务器files。txt文件比对获取需要更新的数据
@@ -398,17 +394,17 @@ func printHotfixResList(command models.AutoBuildCommand)(result string){
 		}
 	}
 	models.ClientHotFixedDataLock.Unlock()
-	result = temp
+	result += temp
 	result += fmt.Sprintf("\ntotalsize:%dMB\nfiles.txtmd5：%s",totalSize/1048576,tool.CalcMd5(path.Join(projectPath, models.CLIENTLOCALRESPATH, models.CLIENTHOTFIXEDFILENAME)))
-	return
+	return result,nil
 }
 
 //上传测试热更资源
-func uploadHotfixRes2Test(command models.AutoBuildCommand)(result string){
+func uploadHotfixRes2Test(command models.AutoBuildCommand)(string,error){
 	//获取项目信息
 	svnProjectName,_,err := models.GetSvnProjectName(command.CommandParams, command.CommandType)
 	if nil != err{
-		return err.Error()
+		return "",err
 	}
 	projectPath := models.GetSvnProjectPath(command.ProjectName, svnProjectName)
 
@@ -418,33 +414,30 @@ func uploadHotfixRes2Test(command models.AutoBuildCommand)(result string){
 	var needUpdateHotfiexedDataList []*models.ClientHotFixedFileData
 	ok := false
 	if needUpdateHotfiexedDataList,ok = models.ClientHotFixedFileDataTempMap[svnProjectName];!ok{
-		result = "获取热更缓存数据失败，请重新执行【输出热更资源列表】指令！"
-		return
+		return "",errors.New("获取热更缓存数据失败，请重新执行【输出热更资源列表】指令！")
 	}
 
 	if nil == needUpdateHotfiexedDataList || len(needUpdateHotfiexedDataList) <= 0{
-		result = "缓存热更数据为空，请重新执行【输出热更资源列表】指令试试！"
-		return
+		return "",errors.New("缓存热更数据为空，请重新执行【输出热更资源列表】指令试试！")
 	}
 
 	//获取cdn配置
-	_result, cdnType, urlOfBucket, bucketName, accessKeyID, accessKeySecret, _, resPaths := models.GetCdnData(command.ProjectName, svnProjectName)
-	if _result != ""{
-		return _result
+	err, cdnType, urlOfBucket, bucketName, accessKeyID, accessKeySecret, _, resPaths := models.GetCdnData(command.ProjectName, svnProjectName)
+	if err != nil{
+		return "",err
 	}
 
 	//获取cdn对象
 	cdnErr,cdnClient := GetCdnClient(cdnType,urlOfBucket,bucketName,accessKeyID,accessKeySecret)
 	if nil != cdnErr{
-		return cdnErr.Error()
+		return "",cdnErr
 	}
 
 	//上传一个文件
 	testPath := resPaths[0]
 	count := 0
 	uploadSuccessMsg := "开始上传测试热更资源：\n"
-	uploadErrorMsg := ""
-	uploadFile := func(uploadFileName string){
+	uploadFile := func(uploadFileName string)error{
 		localFilesPath := path.Join(projectPath, models.CLIENTLOCALRESPATH, uploadFileName)
 		remoteFilePath := path.Join(testPath,uploadFileName)
 		err := cdnClient.UploadFile(localFilesPath,remoteFilePath)
@@ -452,7 +445,7 @@ func uploadHotfixRes2Test(command models.AutoBuildCommand)(result string){
 			count++
 			uploadSuccessMsg += fmt.Sprintf("上传%s成功\n",uploadFileName)
 		}else{
-			uploadErrorMsg += fmt.Sprintf("上传%s失败，原因%s\n",uploadFileName,err.Error())
+			return errors.New(fmt.Sprintf("上传%s失败，原因%s\n",uploadFileName,err.Error()))
 		}
 
 		//避免消息过长，钉钉截掉
@@ -461,45 +454,48 @@ func uploadHotfixRes2Test(command models.AutoBuildCommand)(result string){
 			uploadSuccessMsg = ""
 			count = 0
 		}
+		return nil
 	}
 
 	//先上传所有热更文件
 	for _,hotfiexedData := range needUpdateHotfiexedDataList{
-		uploadFile(hotfiexedData.Name)
+		err := uploadFile(hotfiexedData.Name)
+		if err != nil{
+			return "",err
+		}
 	}
 	delete(models.ClientHotFixedFileDataTempMap, svnProjectName)
 
 	//再上传files.txt并返回md5值
-	uploadFile(models.CLIENTHOTFIXEDFILENAME)
+	err = uploadFile(models.CLIENTHOTFIXEDFILENAME)
+	if err != nil{
+		return "",err
+	}
 
 	//输出结果
-	result = uploadSuccessMsg
+	result := uploadSuccessMsg
 	result += "\nfiles.txtmd5：" + tool.CalcMd5(path.Join(projectPath, models.CLIENTLOCALRESPATH, models.CLIENTHOTFIXEDFILENAME))
-	if uploadErrorMsg == ""{
-		return
-	}
-	result = fmt.Sprintf("%s\n*****************************以下是上传失败文件：\n%s",result,uploadErrorMsg)
-	return
+	return result,nil
 }
 
 //上传正式热更资源
-func uploadHotfixRes2Release(command models.AutoBuildCommand)(result string){
+func uploadHotfixRes2Release(command models.AutoBuildCommand)(string,error){
 	//获取分支名称
 	svnProjectName,_,err := models.GetSvnProjectName(command.CommandParams, command.CommandType)
 	if nil != err{
-		return err.Error()
+		return "",err
 	}
 
 	//获取cdn配置
-	_result, cdnType, urlOfBucket, bucketName, accessKeyID, accessKeySecret, _, resPaths := models.GetCdnData(command.ProjectName, svnProjectName)
-	if _result != ""{
-		return _result
+	err, cdnType, urlOfBucket, bucketName, accessKeyID, accessKeySecret, _, resPaths := models.GetCdnData(command.ProjectName, svnProjectName)
+	if nil != err{
+		return "",err
 	}
 
 	//获取cdn对象
 	cdnErr,cdnClient := GetCdnClient(cdnType,urlOfBucket,bucketName,accessKeyID,accessKeySecret)
 	if nil != cdnErr{
-		return cdnErr.Error()
+		return "",cdnErr
 	}
 
 	//获取服务器资源地址files.txt列表
@@ -511,8 +507,7 @@ func uploadHotfixRes2Release(command models.AutoBuildCommand)(result string){
 		remoteHotfixedFilesPath := path.Join(_path , models.CLIENTHOTFIXEDFILENAME)
 		fileErr,files := cdnClient.DownFile(remoteHotfixedFilesPath)
 		if nil != fileErr{
-			result = fmt.Sprintf("获取files.txt文件失败，资源路径：%s,错误原因：%s",remoteHotfixedFilesPath,fileErr.Error())
-			return
+			return "",errors.New(fmt.Sprintf("获取files.txt文件失败，资源路径：%s,错误原因：%s",remoteHotfixedFilesPath,fileErr.Error()))
 		}
 		resFileList[_path] = string(files)
 	}
@@ -520,6 +515,7 @@ func uploadHotfixRes2Release(command models.AutoBuildCommand)(result string){
 	//从测试地址拷贝资源到正式地址
 	testHotfixedFilesPath := resPaths[0]
 	testFiles := resFileList[testHotfixedFilesPath]
+	result := ""
 	for resPath,files := range resFileList{
 		if resPath == testHotfixedFilesPath{
 			continue
@@ -528,8 +524,7 @@ func uploadHotfixRes2Release(command models.AutoBuildCommand)(result string){
 		//拷贝文件
 		count := 0
 		_SuccessResult := fmt.Sprintf("开始从%s拷贝资源到%s\n",testHotfixedFilesPath,resPath)
-		errResult := ""
-		copyFunc := func(fileName string){
+		copyFunc := func(fileName string)error{
 			testFilesPath := path.Join(testHotfixedFilesPath, fileName)
 			targetFilePath := path.Join(resPath,fileName)
 			err := cdnClient.CopyFile(testFilesPath,targetFilePath)
@@ -537,7 +532,7 @@ func uploadHotfixRes2Release(command models.AutoBuildCommand)(result string){
 				count++
 				_SuccessResult += fmt.Sprintf("拷贝%s成功\n",fileName)
 			}else{
-				errResult += fmt.Sprintf("拷贝%s失败，原因%s\n",fileName,err.Error())
+				return errors.New(fmt.Sprintf("拷贝%s失败，原因%s\n",fileName,err.Error()))
 			}
 
 			//避免消息过长，钉钉截掉
@@ -546,78 +541,95 @@ func uploadHotfixRes2Release(command models.AutoBuildCommand)(result string){
 				_SuccessResult = ""
 				count = 0
 			}
+			return nil
 		}
 
 		//比对出不一样的资源并拷贝
 		needUpdateFiles := models.GetNeedUpdateDatas(testFiles,files)
-		for fileName,_ := range needUpdateFiles{
-			copyFunc(fileName)
-		}
-
-		//没有需要更新的资源
 		if len(needUpdateFiles) <= 0{
 			result += resPath + "没有需要更新的资源\n"
 			continue
 		}
 
+		//拷贝资源
+		for fileName,_ := range needUpdateFiles{
+			err := copyFunc(fileName)
+			if err != nil{
+				return "",err
+			}
+		}
+
 		//拷贝files.txt
-		copyFunc(models.CLIENTHOTFIXEDFILENAME)
+		err := copyFunc(models.CLIENTHOTFIXEDFILENAME)
+		if err != nil{
+			return "",err
+		}
 
 		_SuccessResult += fmt.Sprintf("从%s拷贝资源到%s结束\n",testHotfixedFilesPath,resPath)
-		if errResult != ""{
-			_SuccessResult += ("\n\n异常情况：" + errResult)
-		}
 		_SuccessResult += "***************************************************************************************\n"
 		command.ResultFunc(_SuccessResult, "")
 	}
 	result += "上传正式热更资源结束。"
-	return
+	return result,nil
 }
 
 //备份热更资源
-func backupHotfixRes(command models.AutoBuildCommand)(result string){
+func backupHotfixRes(command models.AutoBuildCommand)(string,error){
 	//获取svn工程名称
 	svnProjectName,_,err := models.GetSvnProjectName(command.CommandParams, command.CommandType)
 	if nil != err{
-		return err.Error()
+		return "",err
+	}
+
+	//判断本地files.txt是否存在
+	projectPath := models.GetSvnProjectPath(command.ProjectName,svnProjectName)
+	localFilesPath := path.Join(projectPath, models.CLIENTLOCALRESPATH, models.CLIENTHOTFIXEDFILENAME)
+	if !tool.CheckFileIsExist(localFilesPath){
+		return "",errors.New("项目不存在files.txt文件")
 	}
 
 	//获取cdn配置
-	_result, cdnType, urlOfBucket, bucketName, accessKeyID, accessKeySecret, backupPath, resPaths := models.GetCdnData(command.ProjectName, svnProjectName)
-	if _result != ""{
-		return _result
+	err, cdnType, urlOfBucket, bucketName, accessKeyID, accessKeySecret, backupPath, resPaths := models.GetCdnData(command.ProjectName, svnProjectName)
+	if nil != err{
+		return "",err
 	}
 
-	//判断本地files.txt文件是否存在，不存在则不备份
+	//判断备份目录是否有files.txt，没有则拷贝
 	backupFilesPath := path.Join(backupPath,models.CLIENTHOTFIXEDFILENAME)
 	if !tool.CheckFileIsExist(backupFilesPath){
-		return fmt.Sprintf("备份地址%s不存在files.txt文件！！！",backupFilesPath)
+		//不存在则拷贝最新文件，也不用备份了
+		_,errCopy := tool.CopyFile(backupFilesPath, localFilesPath)
+		if nil == errCopy{
+			return fmt.Sprintf("不存在%s文件,已拷贝本地最新files.txt\n",backupFilesPath),nil
+		}else{
+			return "",errors.New(fmt.Sprintf("不存在%s文件且拷贝本地文件失败，错误原因：%s\n",backupFilesPath,errCopy.Error()))
+		}
 	}
 
 	//获取本地files.txt文件
+	result := ""
 	backupFilesFile, err := os.Open(backupFilesPath)
 	if err != nil {
 		fmt.Println("读取备份file.txt失败 os.Open:", err)
-		return "读取备份file.txt失败 os.Open:" + err.Error()
+		return "",errors.New("读取备份file.txt失败 os.Open:" + err.Error())
 	}
 	backupFilesFileByts, err := ioutil.ReadAll(backupFilesFile)
 	backupFilesFile.Close()
 	if err != nil {
-		return "读取备份file.txt失败 ioutil.ReadAll:" + err.Error()
+		return "",errors.New("读取备份file.txt失败 ioutil.ReadAll:" + err.Error())
 	}
 
 	//获取cdn对象
 	cdnErr,cdnClient := GetCdnClient(cdnType,urlOfBucket,bucketName,accessKeyID,accessKeySecret)
 	if nil != cdnErr{
-		return cdnErr.Error()
+		return "",cdnErr
 	}
 
 	//获取服务器正式热更files.txt
 	remoteFormalHotfixedFilesPath := path.Join(resPaths[1], models.CLIENTHOTFIXEDFILENAME)
 	formalFileErr, formalFiles := cdnClient.DownFile(remoteFormalHotfixedFilesPath)
 	if nil != formalFileErr {
-		result = fmt.Sprintf("获取正式files.txt文件失败，资源路径：%s,错误原因：%s", remoteFormalHotfixedFilesPath, formalFileErr.Error())
-		return
+		return "",errors.New(fmt.Sprintf("获取正式files.txt文件失败，资源路径：%s,错误原因：%s", remoteFormalHotfixedFilesPath, formalFileErr.Error()))
 	}
 
 	//更新本地备份文件
@@ -652,18 +664,18 @@ func backupHotfixRes(command models.AutoBuildCommand)(result string){
 	commitResult,_ := tool.Exec_shell(commandName,commitCommand)
 	result += commitResult
 	result += "备份完毕！"
-	return
+	return result,nil
 }
 
 //更新用户指令
-func updateUserCommand(command models.AutoBuildCommand) (result string) {
+func updateUserCommand(command models.AutoBuildCommand) (result string,err error) {
 	userInfo := command.CommandParams
 	if userInfo == "" {
 		//如果为空则列出所有用户
 		result += "修改用户名字电话权限项目权限以英文逗号分割\n如【更新用户：张三,158xxx,14,xx项目】,如电话不修改则【张三,,14,xx项目】\n"+
 			"多个用户用英文分号分割,分配多个权限则用|分割，负数表示删除对应枚举权限,\n添加项目权限直接输项目名字，多个项目权限用|分割\n"
 		result += models.GetAllUserInfo(command.ProjectName)
-		return result
+		return
 	} else {
 		//更新用户数据
 		result = models.UpdateUserInfo(command.ProjectName,userInfo)
@@ -672,15 +684,15 @@ func updateUserCommand(command models.AutoBuildCommand) (result string) {
 }
 
 //列出所有日志
-func listAllSvnLog(command models.AutoBuildCommand) (result string) {
+func listAllSvnLog(command models.AutoBuildCommand) (string,error) {
 	//获取项目配置
 	svnProjectName,_,err := models.GetSvnProjectName(command.CommandParams, command.CommandType)
 	if nil != err{
-		return err.Error()
+		return "",err
 	}
 	svnPath := models.GetSvnPath(command.ProjectName, svnProjectName)
 	if "" == svnPath {
-		return "获取svn地址失败，请【更新svn工程配置】指令查看是否有配置数据"
+		return "",errors.New("获取svn地址失败，请【更新svn工程配置】指令查看是否有配置数据")
 	}
 
 	//判断是否有时间参数
@@ -828,14 +840,14 @@ func listAllSvnLog(command models.AutoBuildCommand) (result string) {
 		}
 	}
 	svnLog += "\n"
-	result = fmt.Sprintf("从%s到%s的svn日志:\n%s", startDateStr, endDateStr, svnLog)
+	result := fmt.Sprintf("从%s到%s的svn日志:\n%s", startDateStr, endDateStr, svnLog)
 
 	//保存svn截止日期（后面命令没有参数就是默认从这个时间到最新日志）
 	if endTimeStamp <= 0 {
 		endTimeStamp = time.Now().Unix()
 	}
 	models.SaveSvnLogTime(command.ProjectName, svnProjectName,endTimeStamp)
-	return
+	return result,nil
 }
 
 //更新构建版本号
@@ -854,6 +866,6 @@ func UpdateBuildVerson(command models.AutoBuildCommand) (result string) {
 }
 
 //空方法
-func nullCommandFunc(command models.AutoBuildCommand)(result string){
-	return "没有实现的方法，不应该走到这里："+command.Name
+func nullCommandFunc(command models.AutoBuildCommand)(string,error){
+	return "",errors.New("没有实现的方法，不应该走到这里："+command.Name)
 }

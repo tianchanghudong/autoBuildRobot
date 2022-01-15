@@ -27,14 +27,17 @@ func init() {
 }
 
 //有就更新，没有则添加
-func UpdateProject(projectName, projectConfig string) (result string) {
+func UpdateProject(projectName, projectConfig string) (result string,err error) {
 	projectDataLock.Lock()
 	defer projectDataLock.Unlock()
 
 	//解析数据
 	projectModel := new(ProjectModel)
 	projectModel.TempBanNormalUserCommands = make([]string, 0)
-	tool.UnmarshJson([]byte(projectConfig), &projectModel)
+	err = tool.UnmarshJson([]byte(projectConfig), &projectModel)
+	if nil != err{
+		return
+	}
 
 	//更新或新增
 	if _, ok := projectsMap[projectName]; ok {

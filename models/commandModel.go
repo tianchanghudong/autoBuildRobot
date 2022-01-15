@@ -43,7 +43,7 @@ type AutoBuildCommand struct {
 	ResultFunc    AutoBuildResultFunc  //结果处理函数
 }
 
-type autoBuildCommandFunc func(autoBuildCommand AutoBuildCommand) string //指令处理函数指针
+type autoBuildCommandFunc func(autoBuildCommand AutoBuildCommand) (string,error) //指令处理函数指针
 type AutoBuildResultFunc func(msg, executorPhoneNum string)              //自动构建结果处理函数
 var autoBuildCommandMap map[int]AutoBuildCommand
 var command [CommandType_Max]string         //指令
