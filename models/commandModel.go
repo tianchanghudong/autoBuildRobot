@@ -95,7 +95,7 @@ func init() {
 	commandHelpTips[CommandType_UpdateUser] = GetUserConfigHelp()
 	commandHelpTips[CommandType_UpdateTable] = fmt.Sprintf("例：【%s：研发表格】，其中研发表格是svn工程配置的工程名",commandName[CommandType_UpdateTable])
 	commandHelpTips[CommandType_CloseRobot] = ""
-	commandHelpTips[CommandType_ExcuteSeriesCommand] = fmt.Sprintf("例：【%s:分支合并：开发分支合并到策划分支||更新表格：研发表格||分支合并：策划分支合并到测试分支】，冒号后为多条指令集合，每条指令用双竖线||分割",)
+	commandHelpTips[CommandType_ExcuteSeriesCommand] = fmt.Sprintf("例：【%s:分支合并：开发分支合并到策划分支->更新表格：研发表格->分支合并：策划分支合并到测试分支】，冒号后为多条指令集合，每条指令用英文箭头->分割",)
 }
 
 //添加指令

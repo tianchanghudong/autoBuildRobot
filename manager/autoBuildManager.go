@@ -107,12 +107,12 @@ func RecvCommand(projectName,executor,_commandMsg,webHook string,sendMsgFunc mod
 		_commandMsg = strings.Replace(_commandMsg,seriesCommandName + "：","",1)
 		if models.JudgeIsHelpParam(_commandMsg){
 			//特殊处理帮助参数
-			helpResult := fmt.Sprintf("例：【%s:分支合并：开发分支合并到策划分支||更新表格：研发表格||分支合并：策划分支合并到测试分支】，冒号后为多条指令集合，每条指令用双竖线||分割",seriesCommandName)
+			helpResult := fmt.Sprintf("例：【%s:分支合并：开发分支合并到策划分支->更新表格：研发表格->分支合并：策划分支合并到测试分支】，冒号后为多条指令集合，每条指令用英文箭头分割->分割",seriesCommandName)
 			sendMsgFunc(fmt.Sprintf("builder:%s\ninfo:%s", executor, helpResult), phoneNum)
 			return
 		}else{
 			//返回指令执行结果
-			commandMsgList = append(commandMsgList,strings.Split(_commandMsg,"||")...)
+			commandMsgList = append(commandMsgList,strings.Split(_commandMsg,"->")...)
 		}
 	}else{
 		commandMsgList = append(commandMsgList,_commandMsg)
