@@ -263,9 +263,14 @@ func GetProjectShellParams(projectName, svnProjectName1, svnProjectName2, comman
 			if buildMethod == ""{
 				return errors.New(fmt.Sprintf("获取构建方法失败，，用【%s】空参数查看项目配置是否存在该方法",GetCommandNameByType(CommandType_UpdateSvnProjectConfig))), ""
 			}
-
-			//依次需要客户端引擎路径、工程路径、构建方法、webhook
-			return nil,fmt.Sprintf("\"%s\" \"%s\" \"%s\" \"%s\"",enginePath,svnProjectModel.ProjectPath,buildMethod,webHook)
+			paramDivisionFlagCount := strings.Count(commandParams,",")
+			if paramDivisionFlagCount <= 1{
+				//依次需要客户端引擎路径、工程路径、构建方法、webhook
+				return nil,fmt.Sprintf("\"%s\" \"%s\" \"%s\" \"%s\"",enginePath,svnProjectModel.ProjectPath,buildMethod,webHook)
+			}
+			//默认两个参数分别为项目名和构建方法，如果有多余两个参数则统一作为额外参数
+			params := strings.SplitN(commandParams,",",3)
+			return nil,fmt.Sprintf("\"%s\" \"%s\" \"%s\" \"%s\" \"%s\"",enginePath,svnProjectModel.ProjectPath,buildMethod,webHook,params[2])
 		}
 	}
 	return nil, commandParams

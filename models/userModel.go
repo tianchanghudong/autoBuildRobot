@@ -36,11 +36,16 @@ func GetProjectManagerPhone(projectName string) string {
 	if manager == "" {
 		return ""
 	}
-	_,users := getProjectUsersData(projectName)
-	if user, ok := users[manager]; ok {
-		return user.PhoneNum
+	phone := ""
+	managers := strings.Split(manager,"|")
+	for _,_manager := range managers{
+		_,users := getProjectUsersData(projectName)
+		if user, ok := users[_manager]; ok {
+			phone += user.PhoneNum + ","
+		}
 	}
-	return ""
+
+	return phone
 }
 
 //判断是否有权限
