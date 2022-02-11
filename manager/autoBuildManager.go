@@ -204,6 +204,10 @@ func checkSVNConflictAndNotifyManager(command models.AutoBuildCommand)(isConflic
 		managerPhone := models.GetProjectManagerPhone(command.ProjectName)
 		log.Error(command.ProjectName +",managerPhone:"+managerPhone)
 		command.ResultFunc(fmt.Sprintf("command:%s\ninfo:%s", command.Name, mergeErrorTips),managerPhone )
+
+		//冲突则要手动提交，这样如果修改了外链则也会合并过来（如果没有冲突脚本中有忽视外链），这里处理忽视外链
+		ignoreSvnExternalsCommand := "svn revert ./Assets/LuaFramework/Lua"
+		tool.Exec_shell(commandName, ignoreSvnExternalsCommand)
 		return true
 	}
 	return
@@ -348,7 +352,7 @@ func printHotfixResList(command models.AutoBuildCommand)(string,error){
 	}
 	if isNotExistUpdateFiles {
 		//不存在files.txt，都是最新的，没有需要热更的东西
-		return "",nil
+		return result,nil
 	}
 
 	//获取本地files.txt文件
