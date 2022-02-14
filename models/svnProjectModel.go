@@ -66,26 +66,9 @@ func UpdateSvnProject(projectName, svnProjectConfig string) (result string) {
 			if svnProjectModel.ConflictAutoWayWhenMerge == ""{
 				svnProjectModel.ConflictAutoWayWhenMerge = oldSvnProject.ConflictAutoWayWhenMerge
 			}
-
-			//处理构建方法
-			mapBuildMethods := make(map[string]string)
-			for _, _oldMethod := range oldSvnProject.AutoBuildMethodList {
-				//保留老地址
-				mapBuildMethods[_oldMethod] = _oldMethod
-			}
-			for _, _buildMethod := range svnProjectModel.AutoBuildMethodList {
-				if strings.Contains(_buildMethod, "-") {
-					//删除构建方法
-					delMethod := strings.Replace(_buildMethod, "-", "", 1)
-					delete(mapBuildMethods, delMethod)
-					continue
-				}
-				mapBuildMethods[_buildMethod] = _buildMethod
-			}
-			svnProjectModel.AutoBuildMethodList = make([]string, 0)
-			for _, buildMethod := range mapBuildMethods {
-				//重新赋值所有方法
-				svnProjectModel.AutoBuildMethodList = append(svnProjectModel.AutoBuildMethodList, buildMethod)
+			if nil == svnProjectModel.AutoBuildMethodList || len(svnProjectModel.AutoBuildMethodList) <= 0{
+				//不要那么复杂了，就直接用新得替换，只能更新整个
+				svnProjectModel.AutoBuildMethodList = oldSvnProject.AutoBuildMethodList
 			}
 		}
 		svnProjectMap[svnProjectModel.ProjectName] = svnProjectModel
