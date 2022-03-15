@@ -48,24 +48,9 @@ func UpdateProject(projectName, projectConfig string) (result string,err error) 
 		if "" != projectModel.ClientEnginePath {
 			projectsMap[projectName].ClientEnginePath = projectModel.ClientEnginePath
 		}
-
-		//处理禁止指令
-		tempBanCommandMap := make(map[string]bool)
-		for _, v := range projectsMap[projectName].TempBanNormalUserCommands {
-			tempBanCommandMap[v] = true
+		if nil != projectModel.TempBanNormalUserCommands && len(projectModel.TempBanNormalUserCommands) > 0  {
+			projectsMap[projectName].TempBanNormalUserCommands = projectModel.TempBanNormalUserCommands
 		}
-		for _, v := range projectModel.TempBanNormalUserCommands {
-			if strings.Contains(v, "-") {
-				delete(tempBanCommandMap, strings.ReplaceAll(v, "-", ""))
-				continue
-			}
-			tempBanCommandMap[v] = true
-		}
-		newBanNormalUserCommands := make([]string, 0)
-		for k, _ := range tempBanCommandMap {
-			newBanNormalUserCommands = append(newBanNormalUserCommands, k)
-		}
-		projectsMap[projectName].TempBanNormalUserCommands = newBanNormalUserCommands
 	} else {
 		projectsMap[projectName] = projectModel
 	}
@@ -133,7 +118,7 @@ func JudgeIsManager(projectName, userName string) bool {
 }
 
 //判断指令是否被禁止
-func JudgeCommandIsBan(projectName, userName, commandName string) bool {
+func JudgeCommandIsBan(projectName, userName, commandName,svnProject string) bool {
 	projectDataLock.Lock()
 	defer projectDataLock.Unlock()
 	if project, ok := projectsMap[projectName]; ok {
@@ -141,7 +126,7 @@ func JudgeCommandIsBan(projectName, userName, commandName string) bool {
 			return false
 		}
 		for _, v := range project.TempBanNormalUserCommands {
-			if v == commandName {
+			if v == commandName || v == svnProject{
 				return true
 			}
 		}

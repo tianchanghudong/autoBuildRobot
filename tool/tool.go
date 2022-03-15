@@ -24,7 +24,7 @@ import (
 type ExecCommandFunc func(result string)
 
 //阻塞式的执行外部shell命令的函数,等待执行完毕并返回标准输出
-func Exec_shell(cmdName,s string) (string, error) {
+func Exec_shell(cmdName, s string) (string, error) {
 	//函数返回一个*Cmd，用于使用给出的参数执行name指定的程序
 	cmd := exec.Command(cmdName, "-c", s)
 
@@ -37,7 +37,7 @@ func Exec_shell(cmdName,s string) (string, error) {
 	var enc mahonia.Decoder
 	if runtime.GOOS == "windows" {
 		enc = mahonia.NewDecoder("gbk")
-	}else{
+	} else {
 		enc = mahonia.NewDecoder("utf-8")
 	}
 
@@ -45,7 +45,7 @@ func Exec_shell(cmdName,s string) (string, error) {
 }
 
 //阻塞式的执行外部shell命令的函数,标准输出的逐行实时进行处理的
-func ExecCommand(cmdName,command string,execCommandFunc ExecCommandFunc ) bool {
+func ExecCommand(cmdName, command string, execCommandFunc ExecCommandFunc) bool {
 	log.Info("开始执行：" + command)
 	cmd := exec.Command(cmdName, "-c", command)
 
@@ -62,7 +62,7 @@ func ExecCommand(cmdName,command string,execCommandFunc ExecCommandFunc ) bool {
 	var enc mahonia.Decoder
 	if runtime.GOOS == "windows" {
 		enc = mahonia.NewDecoder("gbk")
-	}else{
+	} else {
 		enc = mahonia.NewDecoder("utf-8")
 	}
 	//实时循环读取输出流中的一行内容
@@ -72,7 +72,7 @@ func ExecCommand(cmdName,command string,execCommandFunc ExecCommandFunc ) bool {
 			log.Error("err2 != nil || io.EOF == err2")
 			break
 		}
-		if line == "\r\n"{
+		if line == "\r\n" {
 			continue
 		}
 		temp := enc.ConvertString(line)
@@ -81,19 +81,18 @@ func ExecCommand(cmdName,command string,execCommandFunc ExecCommandFunc ) bool {
 
 	//阻塞直到该命令执行完成，该命令必须是被Start方法开始执行的
 	cmd.Wait()
-	execCommandFunc("执行完毕！")
 	return true
 }
 
 //发送http请求
-func Http(requestType,url,content string)(error, []byte){
+func Http(requestType, url, content string) (error, []byte) {
 	//创建一个请求
-	result :=""
+	result := ""
 	req, err := http.NewRequest(requestType, url, strings.NewReader(content))
 	if err != nil {
 		result = "发送http请求异常：" + err.Error()
 		log.Error(result)
-		return errors.New(result),nil
+		return errors.New(result), nil
 	}
 
 	client := &http.Client{}
@@ -103,26 +102,26 @@ func Http(requestType,url,content string)(error, []byte){
 	if err != nil {
 		result = "发送http请求失败：" + err.Error()
 		log.Error(result)
-		return errors.New(result),nil
+		return errors.New(result), nil
 	}
-	body,err:=ioutil.ReadAll(resp.Body)
-	return nil,body
+	body, err := ioutil.ReadAll(resp.Body)
+	return nil, body
 }
 
 //序列化json
-func MarshalJson(jsonData interface{})string{
+func MarshalJson(jsonData interface{}) string {
 	data, _ := json.Marshal(jsonData)
 	return string(data)
 }
 
 //反序列化json
-func UnmarshJson(jsonData []byte,data interface{})error{
+func UnmarshJson(jsonData []byte, data interface{}) error {
 	return json.Unmarshal([]byte(jsonData), data)
 }
 
 var gobDataFilePath = "gobData" //gob文件夹名字
 //读取gob文件
-func ReadGobFile(fileName string,data interface{}){
+func ReadGobFile(fileName string, data interface{}) {
 	var dataFile = path.Join(gobDataFilePath, fileName)
 	_, err := os.Stat(dataFile)
 	if err == nil {
@@ -143,7 +142,7 @@ func ReadGobFile(fileName string,data interface{}){
 }
 
 //保存gob数据
-func SaveGobFile(fileName string,_data interface{})(result string) {
+func SaveGobFile(fileName string, _data interface{}) (result string) {
 	//编码并存储
 	data, errEncodeUser := cache.GobEncode(_data)
 	if nil != errEncodeUser {
@@ -189,7 +188,7 @@ func CopyFile(dstName, srcName string) (written int64, err error) {
 }
 
 //计算文件md5值
-func CalcMd5(filePath string)string{
+func CalcMd5(filePath string) string {
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return ""

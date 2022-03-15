@@ -19,15 +19,14 @@ const (
 	CommandType_AutoBuildClient                    = 6  //客户端自动构建
 	CommandType_PrintHotfixResList                 = 7  //输出热更资源列表
 	CommandType_UploadHotfixRes2Test               = 8  //上传测试热更资源
-	CommandType_UploadHotfixRes2Release            = 9 //上传正式热更资源
+	CommandType_UploadHotfixRes2Release            = 9  //上传正式热更资源
 	CommandType_BackupHotfixRes                    = 10 //备份热更资源
 	CommandType_UpdateAndRestartIntranetServer     = 11 //更新并重启内网服务器
 	CommandType_UpdateAndRestartExtranetTestServer = 12 //更新并重启外网测试服
 	CommandType_ListSvnLog                         = 13 //打印svn日志
 	CommandType_UpdateUser                         = 14 //更新用户
 	CommandType_CloseRobot                         = 15 //关闭机器人
-	CommandType_ExcuteSeriesCommand                = 16 //执行多条指令
-	CommandType_Max                                = 17
+	CommandType_Max                                = 16
 )
 
 //自动构建指令
@@ -39,12 +38,12 @@ type AutoBuildCommand struct {
 	HelpTips      string               //帮助提示
 	Func          autoBuildCommandFunc //指令处理函数
 	ProjectName   string               //项目名称（如钉钉群标题，一个群一个项目）
-	WebHook       string  			   //回调地址
+	WebHook       string               //回调地址
 	ResultFunc    AutoBuildResultFunc  //结果处理函数
 }
 
-type autoBuildCommandFunc func(autoBuildCommand AutoBuildCommand) (string,error) //指令处理函数指针
-type AutoBuildResultFunc func(msg, executorPhoneNum string)              //自动构建结果处理函数
+type autoBuildCommandFunc func(autoBuildCommand AutoBuildCommand) (string, error) //指令处理函数指针
+type AutoBuildResultFunc func(msg, executorPhoneNum string)                       //自动构建结果处理函数
 var autoBuildCommandMap map[int]AutoBuildCommand
 var command [CommandType_Max]string         //指令
 var commandName [CommandType_Max]string     //指令名字
@@ -77,25 +76,24 @@ func init() {
 	commandName[CommandType_UpdateUser] = "更新用户"
 	commandName[CommandType_UpdateTable] = "更新表格"
 	commandName[CommandType_CloseRobot] = "关闭自动构建机器人"
-	commandName[CommandType_ExcuteSeriesCommand] = "执行多条指令"
 
 	//初始化指令帮助提示
 	commandHelpTips[CommandType_UpdateProjectConfig] = GetProjectConfigHelp()
 	commandHelpTips[CommandType_UpdateSvnProjectConfig] = GetSvnProjectConfigHelp()
 	commandHelpTips[CommandType_UpdateCdnConfig] = GetCdnConfigHelp()
-	commandHelpTips[CommandType_SvnMerge] = fmt.Sprintf("例：【%s：开发分支合并到策划分支】，开发分支和策划分支都是svn工程配置的工程名，具体分支关系参见https://www.kdocs.cn/l/spWN1ZyWsEPr?f=131",commandName[CommandType_SvnMerge])
-	commandHelpTips[CommandType_AutoBuildClient] = fmt.Sprintf("例：【%s：快接安卓,BuildLuaCode】或【%s：快接安卓,0】，其中参数1是svn工程配置的工程名,参数2是svn工程配置的构建方法或方法索引",commandName[CommandType_AutoBuildClient],commandName[CommandType_AutoBuildClient])
-	commandHelpTips[CommandType_PrintHotfixResList] = fmt.Sprintf("例：【%s：快接安卓】，其中快接安卓是svn工程配置的工程名",commandName[CommandType_PrintHotfixResList])
-	commandHelpTips[CommandType_UploadHotfixRes2Test] = fmt.Sprintf("例：【%s：快接安卓】，其中快接安卓是svn工程配置的工程名",commandName[CommandType_UploadHotfixRes2Test])
-	commandHelpTips[CommandType_UploadHotfixRes2Release] = fmt.Sprintf("例：【%s：快接安卓】，其中快接安卓是svn工程配置的工程名",commandName[CommandType_UploadHotfixRes2Release])
-	commandHelpTips[CommandType_BackupHotfixRes] = fmt.Sprintf("例：【%s：快接安卓,热更日志】，其中参数1是svn工程配置的工程名，参数2是备份日志",commandName[CommandType_BackupHotfixRes])
-	commandHelpTips[CommandType_UpdateAndRestartIntranetServer] = fmt.Sprintf("例：【%s：内网分支】，其中内网分支是svn工程配置的工程名",commandName[CommandType_UpdateAndRestartIntranetServer])
-	commandHelpTips[CommandType_UpdateAndRestartExtranetTestServer] = fmt.Sprintf("例：【%s：外网分支】，其中内网分支是svn工程配置的工程名",commandName[CommandType_UpdateAndRestartExtranetTestServer])
-	commandHelpTips[CommandType_ListSvnLog] = fmt.Sprintf("例：【%s：开发分支】，其中开发分支是svn工程配置的工程名",commandName[CommandType_ListSvnLog])
+	commandHelpTips[CommandType_SvnMerge] = GetMergeCommandHelp()
+	commandHelpTips[CommandType_AutoBuildClient] = GetClientBuildCommandHelp()
+	commonHelpTips := "例：【%s：%s】，参数（%s）是svn工程配置的ProjectName（指令【更新svn工程配置】不带参数可以列出所有svn工程配置）"
+	commandHelpTips[CommandType_PrintHotfixResList] = fmt.Sprintf(commonHelpTips, commandName[CommandType_PrintHotfixResList], "外网测试包", "外网测试包")
+	commandHelpTips[CommandType_UploadHotfixRes2Test] = fmt.Sprintf(commonHelpTips, commandName[CommandType_UploadHotfixRes2Test], "外网测试包", "外网测试包")
+	commandHelpTips[CommandType_UploadHotfixRes2Release] = fmt.Sprintf(commonHelpTips, commandName[CommandType_UploadHotfixRes2Release], "外网测试包", "外网测试包")
+	commandHelpTips[CommandType_BackupHotfixRes] = fmt.Sprintf("例：【%s：外网测试包,热更日志】，参数1（外网测试包）是svn工程配置的ProjectName（指令【更新svn工程配置】不带参数可以列出所有svn工程配置）\n参数2是备份日志", commandName[CommandType_BackupHotfixRes])
+	commandHelpTips[CommandType_UpdateAndRestartIntranetServer] = fmt.Sprintf(commonHelpTips, commandName[CommandType_UpdateAndRestartIntranetServer], "内网分支", "内网分支")
+	commandHelpTips[CommandType_UpdateAndRestartExtranetTestServer] = fmt.Sprintf(commonHelpTips, commandName[CommandType_UpdateAndRestartExtranetTestServer], "外网分支", "外网分支")
+	commandHelpTips[CommandType_ListSvnLog] = fmt.Sprintf(commonHelpTips, commandName[CommandType_ListSvnLog], "开发分支", "开发分支")
 	commandHelpTips[CommandType_UpdateUser] = GetUserConfigHelp()
-	commandHelpTips[CommandType_UpdateTable] = fmt.Sprintf("例：【%s：研发表格】，其中研发表格是svn工程配置的工程名",commandName[CommandType_UpdateTable])
+	commandHelpTips[CommandType_UpdateTable] = fmt.Sprintf(commonHelpTips, commandName[CommandType_UpdateTable], "研发表格", "研发表格")
 	commandHelpTips[CommandType_CloseRobot] = ""
-	commandHelpTips[CommandType_ExcuteSeriesCommand] = fmt.Sprintf("例：【%s:分支合并：开发分支合并到策划分支->更新表格：研发表格->分支合并：策划分支合并到测试分支】，冒号后为多条指令集合，每条指令用英文箭头->分割",)
 }
 
 //添加指令
@@ -187,7 +185,7 @@ func AnalysisCommand(rawCommand string) (ok bool, autoBuildCommand AutoBuildComm
 
 //获取指令名字
 func GetCommandNameByType(commandType int) string {
-	if commandType < CommandType_Help || commandType >= CommandType_Max{
+	if commandType < CommandType_Help || commandType >= CommandType_Max {
 		return "不存在指令类型：" + strconv.Itoa(commandType)
 	}
 	return commandName[commandType]

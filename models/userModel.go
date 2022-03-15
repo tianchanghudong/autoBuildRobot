@@ -55,9 +55,19 @@ func JudgeIsHadPermission(commandType int, projectName,useName,commandParams str
 		return true,""
 	}
 
+	//获取分支名称
+	svnProject1, svnProject2,err := GetSvnProjectName(commandParams,commandType)
+	if nil != err{
+		return false,err.Error()
+	}
+	if commandType == CommandType_SvnMerge {
+		//合并主要看有没有目标分支权限
+		svnProject1 = svnProject2
+	}
+
 	//判断指令是否被禁止了
-	if JudgeCommandIsBan(projectName,useName,GetCommandNameByType(commandType)){
-		return false,"指令已被管理员禁止，联系管理员！"
+	if JudgeCommandIsBan(projectName,useName,GetCommandNameByType(commandType),svnProject1){
+		return false,"指令或svn工程已被管理员禁止，联系管理员！"
 	}
 
 	//获取权限
@@ -82,21 +92,14 @@ func JudgeIsHadPermission(commandType int, projectName,useName,commandParams str
 		return true,""
 	}
 
-	//获取分支名称
-	svnProject1, svnProject2,err := GetSvnProjectName(commandParams,commandType)
-	if nil != err{
-		return false,err.Error()
-	}
+
 
 	//不用判断是否有项目权限
 	if svnProject1 == "" {
 		return true,""
 	}
 
-	if commandType == CommandType_SvnMerge {
-		//合并主要看有没有目标分支权限
-		svnProject1 = svnProject2
-	}
+
 
 	//判断是否有项目权限
 	if nil == projectPermissions {
