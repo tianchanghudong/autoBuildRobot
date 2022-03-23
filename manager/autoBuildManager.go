@@ -50,8 +50,9 @@ func init() {
 	models.AddCommand(models.CommandType_UploadHotfixRes2Test, uploadHotfixRes2Test)
 	models.AddCommand(models.CommandType_UploadHotfixRes2Release, uploadHotfixRes2Release)
 	models.AddCommand(models.CommandType_BackupHotfixRes, backupHotfixRes)
-	models.AddCommand(models.CommandType_UpdateAndRestartIntranetServer, shellCommand)
-	models.AddCommand(models.CommandType_UpdateAndRestartExtranetTestServer, shellCommand)
+	models.AddCommand(models.CommandType_UpdateSvrProgressConfig, updateSvrProgressConfigCommand)
+	models.AddCommand(models.CommandType_UpdateSvrMachineConfig, updateSvrMachineConfigCommand)
+	models.AddCommand(models.CommandType_UpdateAndRestartSvr, shellCommand)
 	models.AddCommand(models.CommandType_UpdateTable, shellCommand)
 
 	models.AddCommand(models.CommandType_UpdateUser, updateUserCommand)
@@ -169,7 +170,11 @@ func checkSVNConflictAndNotifyManager(command models.AutoBuildCommand) (isConfli
 	}
 
 	//检测冲突
-	_, svnProjectName, _ := models.GetSvnProjectName(command.CommandParams, command.CommandType)
+	err,params := models.AnalysisParam(command.CommandParams, command.CommandType)
+	if nil != err {
+		return
+	}
+	svnProjectName := params[0]
 	projectPath := models.GetSvnProjectPath(command.ProjectName, svnProjectName)
 	if "" == projectPath {
 		return
@@ -239,20 +244,49 @@ func updateCdnConfigCommand(command models.AutoBuildCommand) (string, error) {
 	}
 }
 
+//更新服务进程配置
+func updateSvrProgressConfigCommand(command models.AutoBuildCommand) (string, error){
+	svrConfig := command.CommandParams
+	if svrConfig == "" {
+		//如果为空则列出所有svrProgress配置
+		return models.GetAllSvrProgressDataOfOneProject(command.ProjectName), nil
+	} else {
+		//更新svrProgress配置
+		return models.UpdateSvrProgressData(command.ProjectName, svrConfig), nil
+	}
+}
+
+//更新服务主机配置
+func updateSvrMachineConfigCommand(command models.AutoBuildCommand) (string, error){
+	svrMachineConfig := command.CommandParams
+	if svrMachineConfig == "" {
+		//如果为空则列出所有svrMachine配置
+		return models.GetAllSvrMachineDataOfOneProject(command.ProjectName), nil
+	} else {
+		//更新svrMachine配置
+		return models.UpdateSvrMachineData(command.ProjectName, svrMachineConfig), nil
+	}
+}
+
 //执行shell指令
 func shellCommand(command models.AutoBuildCommand) (string, error) {
 	//获取指令
 	commandTxt := command.Command
-	commandParams := command.CommandParams
-	svnProjectName1, svnProjectName2, errSvnProject := models.GetSvnProjectName(command.CommandParams, command.CommandType)
+	errSvnProject ,params := models.AnalysisParam(command.CommandParams, command.CommandType)
 	if nil != errSvnProject {
 		return "", errSvnProject
 	}
-	err, shellParams := models.GetProjectShellParams(command.ProjectName, svnProjectName1, svnProjectName2, commandParams, command.WebHook, command.CommandType)
+	err, shellParams := models.GetShellParams( command.CommandType,params,command.ProjectName,command.WebHook)
 	if nil != err {
 		return "", err
 	}
-	commandTxt = fmt.Sprintf("cd %s;chmod +x %s.sh;./%s.sh %s", shellPath, commandTxt, commandTxt, shellParams)
+
+	if path.Ext(commandTxt) == ".py"{
+		commandTxt = fmt.Sprintf("cd %s;chmod +x %s;python %s %s", shellPath, commandTxt, commandTxt, shellParams)
+	}else{
+		commandTxt = fmt.Sprintf("cd %s;chmod +x %s;./%s %s", shellPath, commandTxt, commandTxt, shellParams)
+	}
+
 	if commandTxt == "" {
 		return "", errors.New("shellCommand,指令为空，请检查！！！")
 	}
@@ -266,25 +300,30 @@ func shellCommand(command models.AutoBuildCommand) (string, error) {
 	}
 	result := ""
 	isError := false
+	lastTime := time.Now().Unix()
 	tool.ExecCommand(commandName, commandTxt, func(resultLine string) {
 		//简单判断是否异常吧
-		if strings.Contains(resultLine, "异常") {
+		lowerResult := strings.ToLower(resultLine)
+		if strings.Contains(resultLine, "异常") || strings.Contains(lowerResult, "exception") ||
+			strings.Contains(resultLine, "失败") || strings.Contains(lowerResult, "fail"){
 			isError = true
 		}
 
 		//每隔80行发送一条构建消息
 		count++
 		temp += resultLine
-		if count >= lineInOneMes {
+		timeNow := time.Now().Unix()
+		if count >= lineInOneMes || (timeNow - lastTime) > 2{
 			command.ResultFunc(temp, "")
 			temp = ""
 			count = 0
+			lastTime = timeNow
 		}
 	})
 
 	//如果是导表，则要提交或者还原
 	if command.CommandType == models.CommandType_UpdateTable {
-		projectPath := models.GetSvnProjectPath(command.ProjectName, svnProjectName1)
+		projectPath := models.GetSvnProjectPath(command.ProjectName, params[0])
 		if isError {
 			//还原
 			revertCommand := fmt.Sprintf("cd %s;svn revert -R .;", projectPath)
@@ -309,10 +348,11 @@ func shellCommand(command models.AutoBuildCommand) (string, error) {
 //输出热更资源列表
 func printHotfixResList(command models.AutoBuildCommand) (string, error) {
 	//获取项目信息
-	svnProjectName, _, err := models.GetSvnProjectName(command.CommandParams, command.CommandType)
+	err,params := models.AnalysisParam(command.CommandParams, command.CommandType)
 	if nil != err {
 		return "", err
 	}
+	svnProjectName := params[0]
 	projectPath := models.GetSvnProjectPath(command.ProjectName, svnProjectName)
 
 	//再获取cdn配置
@@ -412,10 +452,11 @@ func printHotfixResList(command models.AutoBuildCommand) (string, error) {
 //上传测试热更资源
 func uploadHotfixRes2Test(command models.AutoBuildCommand) (string, error) {
 	//获取项目信息
-	svnProjectName, _, err := models.GetSvnProjectName(command.CommandParams, command.CommandType)
+	err,params := models.AnalysisParam(command.CommandParams, command.CommandType)
 	if nil != err {
 		return "", err
 	}
+	svnProjectName := params[0]
 	projectPath := models.GetSvnProjectPath(command.ProjectName, svnProjectName)
 
 	//从缓存中取，如果没有则提示重新获取更新列表
@@ -491,10 +532,11 @@ func uploadHotfixRes2Test(command models.AutoBuildCommand) (string, error) {
 //上传正式热更资源
 func uploadHotfixRes2Release(command models.AutoBuildCommand) (string, error) {
 	//获取分支名称
-	svnProjectName, _, err := models.GetSvnProjectName(command.CommandParams, command.CommandType)
+	err,params := models.AnalysisParam(command.CommandParams, command.CommandType)
 	if nil != err {
 		return "", err
 	}
+	svnProjectName := params[0]
 
 	//获取cdn配置
 	err, cdnType, urlOfBucket, bucketName, accessKeyID, accessKeySecret, _, resPaths := models.GetCdnData(command.ProjectName, svnProjectName)
@@ -586,10 +628,11 @@ func uploadHotfixRes2Release(command models.AutoBuildCommand) (string, error) {
 //备份热更资源
 func backupHotfixRes(command models.AutoBuildCommand) (string, error) {
 	//获取svn工程名称
-	svnProjectName, _, err := models.GetSvnProjectName(command.CommandParams, command.CommandType)
+	err,params := models.AnalysisParam(command.CommandParams, command.CommandType)
 	if nil != err {
 		return "", err
 	}
+	svnProjectName := params[0]
 
 	//判断本地files.txt是否存在
 	projectPath := models.GetSvnProjectPath(command.ProjectName, svnProjectName)
@@ -696,10 +739,11 @@ func updateUserCommand(command models.AutoBuildCommand) (result string, err erro
 //列出所有日志
 func listAllSvnLog(command models.AutoBuildCommand) (string, error) {
 	//获取项目配置
-	svnProjectName, _, err := models.GetSvnProjectName(command.CommandParams, command.CommandType)
+	err,params := models.AnalysisParam(command.CommandParams, command.CommandType)
 	if nil != err {
 		return "", err
 	}
+	svnProjectName := params[0]
 	svnPath := models.GetSvnPath(command.ProjectName, svnProjectName)
 	if "" == svnPath {
 		return "", errors.New("获取svn地址失败，请【更新svn工程配置】指令查看是否有配置数据")
@@ -708,7 +752,6 @@ func listAllSvnLog(command models.AutoBuildCommand) (string, error) {
 	//判断是否有时间参数
 	startTimeStamp := models.GetSvnLogTime(command.ProjectName, svnProjectName)
 	endTimeStamp := int64(0)
-	params := strings.Split(command.CommandParams, ",")
 	if len(params) > 1 {
 		timeStr := params[1]
 		timeStrs := strings.Split(timeStr, "-")

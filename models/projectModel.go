@@ -5,6 +5,7 @@ import (
 	"autobuildrobot/tool"
 	"crypto/md5"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -27,7 +28,7 @@ func init() {
 }
 
 //有就更新，没有则添加
-func UpdateProject(projectName, projectConfig string) (result string,err error) {
+func UpdateProject(projectName, projectConfig string) (result string, err error) {
 	projectDataLock.Lock()
 	defer projectDataLock.Unlock()
 
@@ -35,7 +36,7 @@ func UpdateProject(projectName, projectConfig string) (result string,err error) 
 	projectModel := new(ProjectModel)
 	projectModel.TempBanNormalUserCommands = make([]string, 0)
 	err = tool.UnmarshJson([]byte(projectConfig), &projectModel)
-	if nil != err{
+	if nil != err {
 		return
 	}
 
@@ -48,7 +49,7 @@ func UpdateProject(projectName, projectConfig string) (result string,err error) 
 		if "" != projectModel.ClientEnginePath {
 			projectsMap[projectName].ClientEnginePath = projectModel.ClientEnginePath
 		}
-		if nil != projectModel.TempBanNormalUserCommands && len(projectModel.TempBanNormalUserCommands) > 0  {
+		if nil != projectModel.TempBanNormalUserCommands && len(projectModel.TempBanNormalUserCommands) > 0 {
 			projectsMap[projectName].TempBanNormalUserCommands = projectModel.TempBanNormalUserCommands
 		}
 	} else {
@@ -95,14 +96,13 @@ func GetProjectManager(projectName string) string {
 }
 
 //获取项目客户端引擎（Unity）路径
-func GetProjectClientEnginePath(projectName string) string {
+func GetProjectClientEnginePath(projectName string) (error, string) {
 	projectDataLock.Lock()
 	defer projectDataLock.Unlock()
 	if project, ok := projectsMap[projectName]; ok {
-		return project.ClientEnginePath
+		return nil, project.ClientEnginePath
 	}
-	log.Error("项目客户端引擎路径失败，项目不存在,请添加！！！")
-	return ""
+	return errors.New("项目客户端引擎路径失败，项目不存在,请添加！！！"), ""
 }
 
 //判断是否为管理员
@@ -118,7 +118,7 @@ func JudgeIsManager(projectName, userName string) bool {
 }
 
 //判断指令是否被禁止
-func JudgeCommandIsBan(projectName, userName, commandName,svnProject string) bool {
+func JudgeCommandIsBan(projectName, userName, commandName, svnProject string) bool {
 	projectDataLock.Lock()
 	defer projectDataLock.Unlock()
 	if project, ok := projectsMap[projectName]; ok {
@@ -126,7 +126,10 @@ func JudgeCommandIsBan(projectName, userName, commandName,svnProject string) boo
 			return false
 		}
 		for _, v := range project.TempBanNormalUserCommands {
-			if v == commandName || v == svnProject{
+			if v == ""{
+				continue
+			}
+			if v == commandName || v == svnProject {
 				return true
 			}
 		}

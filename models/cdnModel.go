@@ -151,26 +151,26 @@ func GetAllCdnDataOfOneProject(projectName string) string {
 func GetCdnConfigHelp() string {
 	tpl := CdnModel{
 		ProjectName: "对应svn工程配置中得工程名称",
-		CdnType:    "0:阿里云，1：华为云",
-		BackupPath: "热更备份地址",
-		ResPaths:   []string{"第一个默认为测试地址，地址都为Bucket下得相对路径，且不能有反斜杠用/", "路径2开始为正式地址1，多个地址后面追加"},
+		CdnType:     "0:阿里云，1：华为云",
+		BackupPath:  "热更备份地址",
+		ResPaths:    []string{"第一个默认为测试地址，地址都为Bucket下得相对路径，且不能有反斜杠用/", "路径2开始为正式地址1，多个地址后面追加"},
 	}
-	return fmt.Sprintf("例：\n【%s：%s】 \n如多个配置用英文分号分割", commandName[CommandType_UpdateCdnConfig],tool.MarshalJson(tpl))
+	return fmt.Sprintf("例：\n【%s：%s】 \n如多个配置用英文分号分割", commandName[CommandType_UpdateCdnConfig], tool.MarshalJson(tpl))
 }
 
 //获取CDN配置数据
-func GetCdnData(projectName, branchName string) (
-	err error, cdnType, urlOfBucket, bucketName, accessKeyID, accessKeySecret,backupPath string, resPaths []string) {
+func GetCdnData(projectName, cdnName string) (
+	err error, cdnType, urlOfBucket, bucketName, accessKeyID, accessKeySecret, backupPath string, resPaths []string) {
 	cdnDataLock.Lock()
 	defer cdnDataLock.Unlock()
-	if branchName == "" {
+	if cdnName == "" {
 		err = errors.New("获取cdn地址失败，分支名不能为空！")
 		return
 	}
 	_, projectCdnMap = getProjectCdnsData(projectName)
-	if _branchModel, ok := projectCdnMap[branchName]; ok {
-		return nil, _branchModel.CdnType, _branchModel.EndpointOfBucket, _branchModel.BucketName,
-			_branchModel.AccessKeyID, _branchModel.AccessKeySecret,_branchModel.BackupPath, _branchModel.ResPaths
+	if _cdnModel, ok := projectCdnMap[cdnName]; ok {
+		return nil, _cdnModel.CdnType, _cdnModel.EndpointOfBucket, _cdnModel.BucketName,
+			_cdnModel.AccessKeyID, _cdnModel.AccessKeySecret, _cdnModel.BackupPath, _cdnModel.ResPaths
 	} else {
 		err = errors.New("cdn配置不存在，请添加！")
 		return

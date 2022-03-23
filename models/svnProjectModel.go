@@ -5,7 +5,6 @@ import (
 	"autobuildrobot/tool"
 	"errors"
 	"fmt"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,7 +22,7 @@ type SvnProjectModel struct {
 
 var lastProjectFileName string                //上一个项目的svn工程数据文件名（基本一个项目一个svn工程数据文件）
 var svnProjectMap map[string]*SvnProjectModel //项目分支配置字典，key 分支名 value:项目分支
-var mergeFlag = []string{"合并到", "合并"}         //项目合并标识，按顺序分割获取两个分支
+var mergeFlags = []string{"合并到", "合并"}        //项目合并标识，按顺序分割获取两个分支
 var svnProjectDataLock sync.Mutex
 
 //有就更新，没有则添加
@@ -151,6 +150,38 @@ func GetSvnProjectPath(projectName, svnProjectName string) string {
 	return svnProjectModel.ProjectPath
 }
 
+//获取冲突自动处理方式
+func GetConflictAutoWayWhenMerge(projectName, svnProjectName string) string {
+	svnProjectDataLock.Lock()
+	defer svnProjectDataLock.Unlock()
+	svnProjectModel := getSvnProjectData(projectName, svnProjectName)
+	if nil == svnProjectModel {
+		log.Error("获取冲突自动处理方式失败，不存在svn工程数据，请添加")
+		return ""
+	}
+	return svnProjectModel.ConflictAutoWayWhenMerge
+}
+
+//根据参数获取构建方法
+func GetBuildMethod(projectName, svnProjectName, buildMethodParam string) (error, string) {
+	intParam, err2Int := strconv.Atoi(buildMethodParam)
+	if err2Int != nil {
+		intParam = -1
+	}
+	svnProjectDataLock.Lock()
+	defer svnProjectDataLock.Unlock()
+	svnProjectModel := getSvnProjectData(projectName, svnProjectName)
+	if nil == svnProjectModel {
+		return errors.New("获取构建方法失败，不存在svn工程数据，请添加"), ""
+	}
+	for k, v := range svnProjectModel.AutoBuildMethodList {
+		if k == intParam || v == buildMethodParam {
+			return nil, v
+		}
+	}
+	return errors.New("获取构建方法失败：" + buildMethodParam), ""
+}
+
 //获取上次获取svn日志时间
 func GetSvnLogTime(projectName, svnProjectName string) int64 {
 	svnProjectDataLock.Lock()
@@ -175,99 +206,6 @@ func SaveSvnLogTime(projectName, svnProjectName string, getLogTime int64) {
 	} else {
 		log.Error("保存svn获取时间失败，不存在svn工程")
 	}
-}
-
-//提取指令参数里的svn工程名称
-func GetSvnProjectName(requestParam string, commandType int) (project1, project2 string, err error) {
-	//先判断操作是否需要工程名称
-	if commandType != CommandType_SvnMerge && commandType != CommandType_AutoBuildClient &&
-		commandType != CommandType_PrintHotfixResList && commandType != CommandType_BackupHotfixRes &&
-		commandType != CommandType_UploadHotfixRes2Test && commandType != CommandType_UploadHotfixRes2Release &&
-		commandType != CommandType_UpdateAndRestartIntranetServer && commandType != CommandType_UpdateAndRestartExtranetTestServer &&
-		commandType != CommandType_ListSvnLog && commandType != CommandType_UpdateTable {
-		return "", "", nil
-	}
-
-	//需要名称但参数不足
-	if requestParam == "" {
-		return "", "", errors.New("需要至少有svn工程名称参数！！！")
-	}
-
-	//这些固定第一个参数是工程名称
-	requestParams := strings.Split(requestParam, ",")
-	if len(requestParams) <= 0 {
-		return "", "", errors.New("获取svn工程名称失败")
-	}
-
-	if commandType == CommandType_SvnMerge {
-		//特殊处理项目合并，需要两个分支
-		for _, flag := range mergeFlag {
-			branches := strings.Split(requestParams[0], flag)
-			if len(branches) >= 2 && branches[0] != "" && branches[1] != ""{
-				return branches[0], branches[1], nil
-			}
-		}
-		return "", "", errors.New("获取合并分支失败！")
-	}
-	return requestParams[0], "", nil
-}
-
-//获取shell指令参数
-func GetProjectShellParams(projectName, svnProjectName1, svnProjectName2, commandParams, webHook string, commandType int) (error, string) {
-	svnProjectDataLock.Lock()
-	defer svnProjectDataLock.Unlock()
-	svnProjectModel := getSvnProjectData(projectName, svnProjectName1)
-	if svnProjectName1 != "" && nil == svnProjectModel {
-		return errors.New("不存在svn工程配置：" + svnProjectName1), ""
-	}
-
-	switch commandType {
-	case CommandType_SvnMerge:
-		{
-			if svnProjectName1 == "" || svnProjectName2 == "" {
-				return errors.New(fmt.Sprintf("合并分支名称不合法（请输入两个正确分支信息如开发分支合并到策划分支），branch1：%s,branch2:%s", svnProjectName1, svnProjectName2)), ""
-			}
-			mergeTargetBranch := getSvnProjectData(projectName, svnProjectName2)
-			if nil == mergeTargetBranch {
-				return errors.New("不存在合并目标分支配置：" + svnProjectName2), ""
-			}
-			//参数依次为合并目标工程地址、合并svn地址、冲突解决方式、合并日志
-			return nil, fmt.Sprintf("\"%s\" \"%s\" %s %s", mergeTargetBranch.ProjectPath,
-				svnProjectModel.SvnUrl, mergeTargetBranch.ConflictAutoWayWhenMerge, fmt.Sprintf("%s合并到%s", svnProjectModel.ProjectName, mergeTargetBranch.ProjectName))
-		}
-	case CommandType_UpdateTable:
-		{
-			if svnProjectName1 == "" {
-				return errors.New(fmt.Sprintf("需要项目名称参数，，用【%s】空参数会列出所有项目配置", GetCommandNameByType(CommandType_UpdateSvnProjectConfig))), ""
-			}
-			return nil, fmt.Sprintf("\"%s\" %s", svnProjectModel.ProjectPath, runtime.GOOS)
-		}
-	case CommandType_AutoBuildClient:
-		{
-			if svnProjectName1 == "" {
-				return errors.New(fmt.Sprintf("需要项目名称参数，，用【%s】空参数会列出所有项目配置", GetCommandNameByType(CommandType_UpdateSvnProjectConfig))), ""
-			}
-			enginePath := GetProjectClientEnginePath(projectName)
-
-			//获取构建方法
-			err, buildMethod := svnProjectModel.getBuildMethod(commandParams)
-			if nil != err {
-				return err, ""
-			}
-			if buildMethod == "" {
-				return errors.New(fmt.Sprintf("获取构建方法失败，，用【%s】空参数查看项目配置是否存在该方法", GetCommandNameByType(CommandType_UpdateSvnProjectConfig))), ""
-			}
-			paramDivisionFlagCount := strings.Count(commandParams, ",")
-			if paramDivisionFlagCount <= 1 {
-				//依次需要客户端引擎路径、工程路径、构建方法、webhook
-				return nil, fmt.Sprintf("\"%s\" \"%s\" \"%s\" \"%s\"", enginePath, svnProjectModel.ProjectPath, buildMethod, webHook)
-			}
-			//默认两个参数分别为项目名和构建方法，如果有多余两个参数则统一作为额外参数
-			params := strings.SplitN(commandParams, ",", 3)
-			return nil, fmt.Sprintf("\"%s\" \"%s\" \"%s\" \"%s\" \"%s\"", enginePath, svnProjectModel.ProjectPath, buildMethod, webHook, params[2])
-		}
-	}
-	return nil, commandParams
 }
 
 //获取工程配置
@@ -295,24 +233,4 @@ func getSvnProjectsDataByProjectName(projectName string) (string, map[string]*Sv
 	tool.ReadGobFile(fileName, &svnProjectMap)
 	lastProjectFileName = fileName
 	return fileName, svnProjectMap
-}
-
-//根据参数获取构建方法
-func (this *SvnProjectModel) getBuildMethod(commandParams string) (error, string) {
-	requestParams := strings.Split(commandParams, ",")
-	if len(requestParams) < 2 {
-		return errors.New(fmt.Sprintf("参数不足，【%s：help】获取帮助", GetCommandNameByType(CommandType_AutoBuildClient))), ""
-	}
-	intParam, err2Int := strconv.Atoi(requestParams[1])
-	if err2Int != nil {
-		intParam = -1
-	}
-	buildMethod := ""
-	for k, v := range this.AutoBuildMethodList {
-		if k == intParam || v == requestParams[1] {
-			buildMethod = v
-			break
-		}
-	}
-	return nil, buildMethod
 }
