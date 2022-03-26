@@ -17,7 +17,7 @@ type SvrMachineModel struct {
 	Port        string `json:"Port"`
 	Account     string `json:"Account"`
 	Psd         string `json:"Psd"`
-	UploadPath  string `json:"UploadPath"`
+	SvrRootPath string `json:"SvrRootPath"`
 	ProjectPath string `json:"ProjectPath"` //项目地址
 }
 
@@ -75,8 +75,8 @@ func UpdateSvrMachineData(projectName, svrConfig string) (result string) {
 			if svrModel.Port == "" {
 				svrModel.Port = _svrModel.Port
 			}
-			if svrModel.UploadPath == "" {
-				svrModel.UploadPath = _svrModel.UploadPath
+			if svrModel.SvrRootPath == "" {
+				svrModel.SvrRootPath = _svrModel.SvrRootPath
 			}
 			if svrModel.ProjectPath == "" {
 				svrModel.ProjectPath = _svrModel.ProjectPath
@@ -111,7 +111,7 @@ func GetAllSvrMachineDataOfOneProject(projectName string) string {
 		tpl.Account = v.Account
 		tpl.Psd = v.Psd
 		tpl.Port = v.Port
-		tpl.UploadPath = v.UploadPath
+		tpl.SvrRootPath = v.SvrRootPath
 		tpl.ProjectPath = v.ProjectPath
 		result += fmt.Sprintln(tool.MarshalJson(tpl) + "\n")
 	}
@@ -127,14 +127,14 @@ func GetSvrMachineConfigHelp() string {
 		Port:        "端口",
 		Psd:         "密码",
 		Account:     "账号",
-		UploadPath:  "上传地址",
+		SvrRootPath: "服务器根目录",
 		ProjectPath: "工程地址",
 	}
 	return fmt.Sprintf("例：\n【%s：%s】 \n如多个配置用英文分号分割", commandName[CommandType_UpdateSvrMachineConfig], tool.MarshalJson(tpl))
 }
 
 //获取服务器主机配置数据
-func GetSvrMachineData(projectName, svrMachineName string) (err error, ip, port, account, psd, platform, uploadPath, projectPath string) {
+func GetSvrMachineData(projectName, svrMachineName string) (err error, ip, port, account, psd, platform, svrRootPath, projectPath string) {
 	svrMachineDataLock.Lock()
 	defer svrMachineDataLock.Unlock()
 	if svrMachineName == "" {
@@ -143,7 +143,7 @@ func GetSvrMachineData(projectName, svrMachineName string) (err error, ip, port,
 	}
 	_, svrMachineConfigMap = getProjectSvrMachineData(projectName)
 	if _svrModel, ok := svrMachineConfigMap[svrMachineName]; ok {
-		return nil, _svrModel.Ip, _svrModel.Port, _svrModel.Account, _svrModel.Psd, _svrModel.Platform, _svrModel.UploadPath, _svrModel.ProjectPath
+		return nil, _svrModel.Ip, _svrModel.Port, _svrModel.Account, _svrModel.Psd, _svrModel.Platform, _svrModel.SvrRootPath, _svrModel.ProjectPath
 	} else {
 		err = errors.New(svrMachineName + "主机配置不存在，请添加！")
 		return

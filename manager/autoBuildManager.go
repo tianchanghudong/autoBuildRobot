@@ -17,10 +17,11 @@ import (
 )
 
 //app.conf配置信息
-var winGitPath = ""       //window git 安装路径，用于执行shell脚本
-var lineInOneMes = 80     //一条构建消息的行数
-var logFilter = ""        //svn日志过滤字符串
-var closeRobotTime = 3580 //定时关闭机器人得时间（从0点算起得秒数）
+var winGitPath = ""                       //window git 安装路径，用于执行shell脚本
+var lineInOneMes = 80                     //一条构建消息的行数
+var maxIntervalTimeBetween2Msg = int64(5) //一条消息间隔最长时间
+var logFilter = ""                        //svn日志过滤字符串
+var closeRobotTime = 3580                 //定时关闭机器人得时间（从0点算起得秒数）
 
 const shellPath = "shell"           //shell脚本地址
 const seriesCommandSeparator = "->" //多条指令分隔符
@@ -313,7 +314,7 @@ func shellCommand(command models.AutoBuildCommand) (string, error) {
 		count++
 		temp += resultLine
 		timeNow := time.Now().Unix()
-		if count >= lineInOneMes || (timeNow - lastTime) > 2{
+		if count >= lineInOneMes || (timeNow - lastTime) > maxIntervalTimeBetween2Msg {
 			command.ResultFunc(temp, "")
 			temp = ""
 			count = 0

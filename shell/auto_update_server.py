@@ -23,10 +23,10 @@ def zipdir(f, dirname):
         else:
             f.write(file, '%s/'%dirname + os.path.basename(file))
 
-def package(platform,zipFileName,zipDirList,zipFileList):
+def package(platform,zipFileNameWithoutExt,zipDirList,zipFileList):
     if compile(platform) == False:
-        return ""
-    f = zipfile.ZipFile(zipFileName + ".zip", 'w', zipfile.ZIP_DEFLATED) 
+        return False
+    f = zipfile.ZipFile(zipFileNameWithoutExt + ".zip", 'w', zipfile.ZIP_DEFLATED) 
     _zipDirList = zipDirList.split("|")
     for dir in _zipDirList:
         zipdir(f, dir)
@@ -36,10 +36,10 @@ def package(platform,zipFileName,zipDirList,zipFileList):
             f.write(file)
         elif file != "":
             print("不存在文件：{0}".format(file))
-            return ""            
+            return False            
     f.close()
-    print("package OK")
-    return zipFileName
+    print("zip OK")
+    return True
 
 def compile(platform):
     compile_result = os.system("CGO_ENABLED=0 GOOS={0} GOARCH=amd64 go build".format(platform))
@@ -91,34 +91,37 @@ if __name__ == '__main__':
     if len(sys.argv) < 12:
         print("not enough params:")
         exit(1)
+    #所有参数
     projectPath = sys.argv[1]
     svrProgressProjDirName = sys.argv[2]
     platform = sys.argv[3]
-    zipFileName = sys.argv[4]
+    zipFileNameWithoutExt = sys.argv[4]
     zipDirList = sys.argv[5]
     zipFileList = sys.argv[6]
     upload_ip = sys.argv[7]
     port = sys.argv[8]
     account = sys.argv[9]
     psd = sys.argv[10]
-    uploadPath = sys.argv[11]
+    svrRootPath = sys.argv[11]
     
-    GOPATH_ = projectPath + ":" + projectPath + "/package"
-    os.environ["GOPATH"] = GOPATH_
-    print(os.environ["GOPATH"])
+    #更新    
     svn_update(projectPath)
     
+    #编译
+    GOPATH_ = projectPath + ":" + projectPath + "/package"
+    os.environ["GOPATH"] = GOPATH_
     os.chdir(projectPath + "/src/" + svrProgressProjDirName)
-    print os.getcwd()
-
-    file = ""
-    file = package(platform,zipFileName,zipDirList,zipFileList)
-    if file == "":
+    if package(platform,zipFileNameWithoutExt,zipDirList,zipFileList) == False:
         exit(2)
+    
+    #上传
+    uploadPath = os.path.join(svrRootPath,zipFileNameWithoutExt)
     if platform == "windows":
-        upload(upload_ip,port,account,psd,file + ".zip",uploadPath)
+        upload(upload_ip,port,account,psd,zipFileNameWithoutExt + ".zip",uploadPath)
     else:
-        scp_upload(upload_ip,port,account,psd,file + ".zip",uploadPath)
-    updateShPath = os.path.abspath(os.path.join(uploadPath, ".."))
-    update_svr(upload_ip,port,account,psd,updateShPath, file)
+        scp_upload(upload_ip,port,account,psd,zipFileNameWithoutExt + ".zip",uploadPath)
+    
+    #更新
+    updateShPath = os.path.join(svrRootPath, "dus")
+    update_svr(upload_ip,port,account,psd,updateShPath, zipFileNameWithoutExt)
     exit(0)

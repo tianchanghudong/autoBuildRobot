@@ -244,6 +244,11 @@ func AnalysisParam(requestParam string, commandType int) (err error, params []st
 
 //获取shell指令参数
 func GetShellParams(commandType int, commandParams []string, projectName, webHook string) (error, string) {
+	//不需要参数
+	if commandType == CommandType_Help || commandType == CommandType_CloseRobot {
+		return nil,""
+	}
+
 	//先判断是否是服务器更新
 	if commandType == CommandType_UpdateAndRestartSvr {
 		if len(commandParams) <= 1 {
@@ -251,16 +256,16 @@ func GetShellParams(commandType int, commandParams []string, projectName, webHoo
 		}
 
 		//依次为projectPath svrProgressProjDirName platform zipFileName zipDirList zipFileList upload_ip port account psd uploadPath updateCommand
-		err, ip, port, account, psd, platform, uploadPath, projectPath := GetSvrMachineData(projectName, commandParams[0])
+		err, ip, port, account, psd, platform, svrRootPath, projectPath := GetSvrMachineData(projectName, commandParams[0])
 		if err != nil {
 			return err, ""
 		}
-		err, dirName, zipFileName, zipFileList, zipDirList := GetSvrProgressData(projectName, commandParams[1])
+		err, dirName, zipFileNameWithoutExt, zipFileList, zipDirList := GetSvrProgressData(projectName, commandParams[1])
 		if err != nil {
 			return err, ""
 		}
 		return nil, fmt.Sprintf("\"%s\" \"%s\" \"%s\" \"%s\" \"%s\"  \"%s\"  \"%s\"  \"%s\"  \"%s\"  \"%s\"  \"%s\"",
-			projectPath, dirName, platform, zipFileName, zipDirList, zipFileList, ip, port, account, psd, uploadPath)
+			projectPath, dirName, platform, zipFileNameWithoutExt, zipDirList, zipFileList, ip, port, account, psd, svrRootPath)
 	}
 
 	if len(commandParams) <= 0 {

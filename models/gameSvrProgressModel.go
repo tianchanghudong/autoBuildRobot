@@ -11,11 +11,11 @@ import (
 
 //游戏服务器进程配置
 type GameSvrProgressModel struct {
-	SvrProgressName    string `json:"SvrProgressName"`    //服务进程名称
-	SvrProgressDirName string `json:"SvrProgressDirName"` //服务进程文件夹名
-	ZipFileName        string `json:"ZipFileName"`        //服务进程压缩文件名字
-	ZipFileList        string `json:"ZipFileList"`        //要压缩的文件list,用竖线分割
-	ZipDirList         string `json:"ZipDirList"`         //要压缩的文件夹列表，用竖线分割
+	SvrProgressName       string `json:"SvrProgressName"`       //服务进程名称
+	SvrProgressDirName    string `json:"SvrProgressDirName"`    //服务进程文件夹名
+	ZipFileNameWithoutExt string `json:"ZipFileNameWithoutExt"` //服务进程压缩文件名字
+	ZipFileList           string `json:"ZipFileList"`           //要压缩的文件list,用竖线分割
+	ZipDirList            string `json:"ZipDirList"`            //要压缩的文件夹列表，用竖线分割
 }
 
 var lastSvrProgressConfigFileName string                  //上一次的服务进程配置数据文件名（基本一个项目一个文件）
@@ -66,8 +66,8 @@ func UpdateSvrProgressData(projectName, svrConfig string) (result string) {
 			if svrModel.ZipDirList == "" {
 				svrModel.ZipDirList = _svrModel.ZipDirList
 			}
-			if svrModel.ZipFileName == "" {
-				svrModel.ZipFileName = _svrModel.ZipFileName
+			if svrModel.ZipFileNameWithoutExt == "" {
+				svrModel.ZipFileNameWithoutExt = _svrModel.ZipFileNameWithoutExt
 			}
 		}
 		svrProgressConfigMap[svrModel.SvrProgressName] = svrModel
@@ -97,7 +97,7 @@ func GetAllSvrProgressDataOfOneProject(projectName string) string {
 		tpl.SvrProgressDirName = v.SvrProgressDirName
 		tpl.ZipFileList = v.ZipFileList
 		tpl.ZipDirList = v.ZipDirList
-		tpl.ZipFileName = v.ZipFileName
+		tpl.ZipFileNameWithoutExt = v.ZipFileNameWithoutExt
 		result += fmt.Sprintln(tool.MarshalJson(tpl) + "\n")
 	}
 	return result
@@ -106,17 +106,17 @@ func GetAllSvrProgressDataOfOneProject(projectName string) string {
 //获取服务进程配置帮助提示
 func GetSvrProgressConfigHelp() string {
 	tpl := GameSvrProgressModel{
-		SvrProgressName:    "游戏服务进程名",
-		SvrProgressDirName: "服务进程文件夹名",
-		ZipFileName:        "编译后压缩上传的压缩文件名",
-		ZipDirList:         "要压缩上传的所有文件夹名，多个用竖线分割",
-		ZipFileList:        "要压缩上传的所有文件名，多个用竖线分割",
+		SvrProgressName:       "游戏服务进程名",
+		SvrProgressDirName:    "服务进程文件夹名",
+		ZipFileNameWithoutExt: "编译后压缩上传的不带后缀的压缩文件名",
+		ZipDirList:            "要压缩上传的所有文件夹名，多个用竖线分割",
+		ZipFileList:           "要压缩上传的所有文件名，多个用竖线分割",
 	}
 	return fmt.Sprintf("例：\n【%s：%s】 \n如多个配置用英文分号分割", commandName[CommandType_UpdateSvrProgressConfig], tool.MarshalJson(tpl))
 }
 
 //获取服务进程配置数据
-func GetSvrProgressData(projectName, svrProgressName string) (err error, dirName, zipFileName, zipFileList, zipDirList string) {
+func GetSvrProgressData(projectName, svrProgressName string) (err error, dirName, zipFileNameWithoutExt, zipFileList, zipDirList string) {
 	svrProgressDataLock.Lock()
 	defer svrProgressDataLock.Unlock()
 	if svrProgressName == "" {
@@ -125,7 +125,7 @@ func GetSvrProgressData(projectName, svrProgressName string) (err error, dirName
 	}
 	_, svrProgressConfigMap = getProjectSvrProgressData(projectName)
 	if _svrModel, ok := svrProgressConfigMap[svrProgressName]; ok {
-		return nil, _svrModel.SvrProgressDirName, _svrModel.ZipFileName, _svrModel.ZipFileList, _svrModel.ZipDirList
+		return nil, _svrModel.SvrProgressDirName, _svrModel.ZipFileNameWithoutExt, _svrModel.ZipFileList, _svrModel.ZipDirList
 	} else {
 		err = errors.New(svrProgressName + "svrProgress配置不存在，请添加！")
 		return

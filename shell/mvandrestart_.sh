@@ -1,21 +1,20 @@
 #!/bin/bash
-
 dirname=$1
+zipfile=${dirname}".zip"
 targetdir="/data/"${dirname}
 backfile=${dirname}".tgz"
 excludedir=${dirname}"/logdata"
 excuteFile="startAll.sh"
 
 cd /data
-tar -czvf ${backfile} --exclude=${excludedir} ${dirname}
-cd /data/dus/server_file
-unzip -o -d ${targetdir} ${dirname}".zip"
-
+tar -czvf ${backfile} --exclude=${excludedir} --exclude=${zipfile} ${dirname}
 cd ${targetdir}
+unzip -o ${zipfile}
+
 if [ ! -x "$excuteFile" ]; then
-./stop.sh;sleep 1;./start.sh
+./stop.sh;sleep 10;./start.sh
 else
-./stopAll.sh;sleep 1;./startAll.sh
+./stopAll.sh;sleep 10;./startAll.sh
 fi
 
 
