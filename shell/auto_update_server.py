@@ -22,7 +22,10 @@ def zipdir(f, dirname):
         else:
             f.write(file, '%s/'%dirname + os.path.basename(file))
 
-def package(platform,zipFileNameWithoutExt,zipDirList,zipFileList):
+def package(projectPath,svrProgressProjDirName,platform,zipFileNameWithoutExt,zipDirList,zipFileList):
+    GOPATH_ = projectPath + ":" + projectPath + "/package"
+    os.environ["GOPATH"] = GOPATH_
+    os.chdir(projectPath + "/src/" + svrProgressProjDirName)
     if compile(platform) == False:
         return False
     f = zipfile.ZipFile(zipFileNameWithoutExt + ".zip", 'w', zipfile.ZIP_DEFLATED) 
@@ -39,9 +42,19 @@ def package(platform,zipFileNameWithoutExt,zipDirList,zipFileList):
         for file in _zipFileList:
             if os.path.exists(file):            
                 f.write(file)
-            elif file != "":
+            #后面分支貌似要合并，但是貌似现在这样更可读
+            elif file.find(svrProgressProjDirName) >= 0: 
+                #根据平台不同，编译的可执行文件后缀也不一样
+                if platform == "windows":
+                    if file.find("exe"):
+                        print("不存在文件：{0}，请检查".format(file))
+                        return False 
+                else:
+                    print("不存在文件：{0}，请检查".format(file))
+                    return False 
+            else:
                 print("不存在文件：{0}，请检查".format(file))
-                #return False            
+                return False            
     f.close()
     print("zip OK")
     return True
@@ -72,7 +85,7 @@ def update_svr(upload_ip,port,account,psd,platform,updateShPath, zipFileName):
     sshCommand = 'cd {0};./mvandrestart_.sh {1}'.format(updateShPath,zipFileName)
     if platform == "windows":
         #windows烦死了，，macssh到window切换盘符以及执行多条命令烦死了，干脆直接把脚本放到windows的用户下面，直接执行脚本
-        sshCommand = 'mvandrestart_.sh {1}'.format(zipFileName)
+        sshCommand = 'mvandrestart_.sh {0}'.format(zipFileName)
     stdin, stdout ,stderr = ssh.exec_command(sshCommand)
     out = stdout.readlines()
     #for o in out:
@@ -100,11 +113,8 @@ if __name__ == '__main__':
     #更新    
     svn_update(projectPath)
     
-    #编译
-    GOPATH_ = projectPath + ":" + projectPath + "/package"
-    os.environ["GOPATH"] = GOPATH_
-    os.chdir(projectPath + "/src/" + svrProgressProjDirName)
-    if package(platform,zipFileNameWithoutExt,zipDirList,zipFileList) == False:
+    #编译    
+    if package(projectPath,svrProgressProjDirName,platform,zipFileNameWithoutExt,zipDirList,zipFileList) == False:
         exit(2)
     
     #上传

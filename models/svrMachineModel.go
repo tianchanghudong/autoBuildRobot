@@ -69,10 +69,10 @@ func UpdateSvrMachineData(projectName, svrConfig string) (result string) {
 			if svrModel.Account == "" {
 				svrModel.Account = _svrModel.Account
 			}
-			if svrModel.Psd == "" {
+			if svrModel.Psd == "" || svrModel.Psd == secretFlag{
 				svrModel.Psd = _svrModel.Psd
 			}
-			if svrModel.Port == "" {
+			if svrModel.Port == ""{
 				svrModel.Port = _svrModel.Port
 			}
 			if svrModel.SvrRootPath == "" {
@@ -109,7 +109,7 @@ func GetAllSvrMachineDataOfOneProject(projectName string) string {
 		tpl.Ip = v.Ip
 		tpl.Platform = v.Platform
 		tpl.Account = v.Account
-		tpl.Psd = v.Psd
+		tpl.Psd = secretFlag
 		tpl.Port = v.Port
 		tpl.SvrRootPath = v.SvrRootPath
 		tpl.ProjectPath = v.ProjectPath

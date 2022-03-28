@@ -208,7 +208,7 @@ func JudgeIsNeedProjectPermission(commandType int) bool {
 	if commandType == CommandType_SvnMerge || commandType == CommandType_UpdateTable ||
 		commandType == CommandType_AutoBuildClient || commandType == CommandType_PrintHotfixResList ||
 		commandType == CommandType_UploadHotfixRes2Test || commandType == CommandType_UploadHotfixRes2Release ||
-		commandType == CommandType_BackupHotfixRes || commandType == CommandType_ListSvnLog {
+		commandType == CommandType_BackupHotfixRes || commandType == CommandType_UpdateAndRestartSvr {
 		return true
 	}
 	return false

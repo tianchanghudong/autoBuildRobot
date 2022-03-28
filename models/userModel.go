@@ -89,11 +89,6 @@ func JudgeIsHadPermission(commandType int, projectName, useName, commandParams s
 		return false, "没有指令权限，请联系管理员！"
 	}
 
-	if JudgeIsHelpParam(commandParams) {
-		//如果是帮助，则只要判断指令权限就够了
-		return true, ""
-	}
-
 	//不用判断是否有项目权限
 	if !JudgeIsNeedProjectPermission(commandType) {
 		return true, ""
