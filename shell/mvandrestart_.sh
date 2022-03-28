@@ -7,7 +7,7 @@ excludedir=${dirname}"/logdata"
 excuteFile="startAll.sh"
 
 cd /data
-tar -czvf ${backfile} --exclude=${excludedir} --exclude=${zipfile} ${dirname}
+#tar -czvf ${backfile} --exclude=${excludedir} --exclude=${zipfile} ${dirname}
 cd ${targetdir}
 unzip -o ${zipfile}
 

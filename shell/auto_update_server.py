@@ -9,7 +9,6 @@ import paramiko
 import contextlib
 import scpclient
 import os.path
-from ftplib import FTP
 
 def svn_update(base_path):
     os.system('cd {0};svn update .'.format(base_path))
@@ -27,22 +26,28 @@ def package(platform,zipFileNameWithoutExt,zipDirList,zipFileList):
     if compile(platform) == False:
         return False
     f = zipfile.ZipFile(zipFileNameWithoutExt + ".zip", 'w', zipfile.ZIP_DEFLATED) 
-    _zipDirList = zipDirList.split("|")
-    for dir in _zipDirList:
-        zipdir(f, dir)
-    _zipFileList = zipFileList.split("|")
-    for file in _zipFileList:
-        if os.path.exists(file):            
-            f.write(file)
-        elif file != "":
-            print("不存在文件：{0}".format(file))
-            return False            
+    
+    #压缩文件夹
+    if zipDirList != "":
+        _zipDirList = zipDirList.split("|")
+        for dir in _zipDirList:
+            zipdir(f, dir)
+    
+    #压缩文件
+    if zipFileList != "":
+        _zipFileList = zipFileList.split("|")
+        for file in _zipFileList:
+            if os.path.exists(file):            
+                f.write(file)
+            elif file != "":
+                print("不存在文件：{0}，请检查".format(file))
+                #return False            
     f.close()
     print("zip OK")
     return True
 
 def compile(platform):
-    compile_result = os.system("CGO_ENABLED=0 GOOS={0} GOARCH=amd64 go build".format(platform))
+    compile_result = os.system("GOOS={0} GOARCH=amd64 go build".format(platform))
     if compile_result != 0:
         print("compile failed")
         return False
@@ -60,27 +65,15 @@ def scp_upload(upload_ip,port,account,psd,file,uploadPath):
 		scp.send_file(file, True, file)
 	print("scp upload OK")
 
-def upload(upload_ip,port,account,psd,file,uploadPath):
-    ftp = FTP() 
-    ftp.set_debuglevel(2) 
-    ftp.connect(upload_ip,port)
-    ftp.login(account,psd) 
-    ftp.cwd(uploadPath)
-    bufsize = 1024 
-    fd = open(file, 'rb')
-    ftp.set_pasv(1)
-    print os.path.basename(file)
-    ftp.storbinary('STOR %s ' % os.path.basename(file), fd, bufsize)  
-    ftp.set_debuglevel(0)
-    fd.close() 
-    ftp.quit() 
-    print "ftp upload OK"
-
-def update_svr(upload_ip,port,account,psd,updateShPath, zipFileName):
+def update_svr(upload_ip,port,account,psd,platform,updateShPath, zipFileName):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(upload_ip,port,account,psd,timeout=10)
-    stdin, stdout ,stderr = ssh.exec_command('cd {0};./mvandrestart_.sh {1}'.format(updateShPath,zipFileName))
+    sshCommand = 'cd {0};./mvandrestart_.sh {1}'.format(updateShPath,zipFileName)
+    if platform == "windows":
+        #windows烦死了，，macssh到window切换盘符以及执行多条命令烦死了，干脆直接把脚本放到windows的用户下面，直接执行脚本
+        sshCommand = 'mvandrestart_.sh {1}'.format(zipFileName)
+    stdin, stdout ,stderr = ssh.exec_command(sshCommand)
     out = stdout.readlines()
     #for o in out:
 	#	print o
@@ -116,12 +109,9 @@ if __name__ == '__main__':
     
     #上传
     uploadPath = os.path.join(svrRootPath,zipFileNameWithoutExt)
-    if platform == "windows":
-        upload(upload_ip,port,account,psd,zipFileNameWithoutExt + ".zip",uploadPath)
-    else:
-        scp_upload(upload_ip,port,account,psd,zipFileNameWithoutExt + ".zip",uploadPath)
+    scp_upload(upload_ip,port,account,psd,zipFileNameWithoutExt + ".zip",uploadPath)
     
     #更新
     updateShPath = os.path.join(svrRootPath, "dus")
-    update_svr(upload_ip,port,account,psd,updateShPath, zipFileNameWithoutExt)
+    update_svr(upload_ip,port,account,psd,platform,updateShPath, zipFileNameWithoutExt)
     exit(0)
