@@ -22,8 +22,8 @@ type CdnModel struct {
 
 }
 
-var lastProjectCdnFileName string      //上一次的CDN数据文件名（基本一个项目一个文件）
-var projectCdnMap map[string]*CdnModel //项目CDN配置字典，key CDN名 value:项目CDN配置
+var lastProjectCdnFileName string     //上一次的CDN数据文件名（基本一个项目一个文件）
+var cdnConfigMap map[string]*CdnModel //项目CDN配置字典，key CDN名 value:项目CDN配置
 var cdnDataLock sync.Mutex
 
 const secretFlag = "***"
@@ -35,7 +35,7 @@ func UpdateCdn(projectName, cdnConfig string) (result string) {
 
 	//先获取数据
 	var fileName string
-	fileName, projectCdnMap = getProjectCdnsData(projectName)
+	fileName, cdnConfigMap = getProjectCdnsData(projectName)
 
 	//再更新数据
 	cdnArr := strings.Split(cdnConfig, ";")
@@ -56,7 +56,7 @@ func UpdateCdn(projectName, cdnConfig string) (result string) {
 		if strings.Contains(cdnModel.ProjectName, "-") {
 			//负号作为删除标记吧
 			delBranch := strings.ReplaceAll(cdnModel.ProjectName, "-", "")
-			delete(projectCdnMap, delBranch)
+			delete(cdnConfigMap, delBranch)
 			continue
 		}
 
@@ -69,7 +69,7 @@ func UpdateCdn(projectName, cdnConfig string) (result string) {
 		}
 
 		//增加或修改
-		if _cdnModel, ok := projectCdnMap[cdnModel.ProjectName]; ok {
+		if _cdnModel, ok := cdnConfigMap[cdnModel.ProjectName]; ok {
 			//已存在，如果数据为空则用老数据
 			if cdnModel.CdnType == "" {
 				cdnModel.CdnType = _cdnModel.CdnType
@@ -111,11 +111,11 @@ func UpdateCdn(projectName, cdnConfig string) (result string) {
 				cdnModel.ResPaths = append(cdnModel.ResPaths, path)
 			}
 		}
-		projectCdnMap[cdnModel.ProjectName] = cdnModel
+		cdnConfigMap[cdnModel.ProjectName] = cdnModel
 	}
 
 	//编码并存储
-	tool.SaveGobFile(fileName, projectCdnMap)
+	tool.SaveGobFile(fileName, cdnConfigMap)
 	if result != "" {
 		return
 	}
@@ -123,17 +123,20 @@ func UpdateCdn(projectName, cdnConfig string) (result string) {
 }
 
 //获取一个项目所有CDN配置信息
-func GetAllCdnDataOfOneProject(projectName string) string {
+func QueryCdnDataOfOneProject(projectName, searchValue string) (result string) {
 	cdnDataLock.Lock()
 	defer cdnDataLock.Unlock()
-	_, projectCdnMap = getProjectCdnsData(projectName)
-	if len(projectCdnMap) <= 0 {
+	_, cdnConfigMap = getProjectCdnsData(projectName)
+	if len(cdnConfigMap) <= 0 {
 		return "当前没有cdn配置信息，请配置：\n" + GetCdnConfigHelp()
 	}
 
-	result := "\n***********************以下是已有的cdn配置***********************\n"
 	tpl := CdnModel{}
-	for _, v := range projectCdnMap {
+	for _, v := range cdnConfigMap {
+		if !JudgeIsSearchAllParam(searchValue) && v.ProjectName != searchValue {
+			//数据量不大，这里就不再做获取到了退出循环吧
+			continue
+		}
 		tpl.ProjectName = v.ProjectName
 		tpl.CdnType = v.CdnType
 		tpl.EndpointOfBucket = v.EndpointOfBucket
@@ -144,18 +147,22 @@ func GetAllCdnDataOfOneProject(projectName string) string {
 		tpl.AccessKeySecret = secretFlag
 		result += fmt.Sprintln(tool.MarshalJson(tpl) + "\n")
 	}
-	return result
+	if result == "" {
+		return "当前没有符合条件的cdn配置信息，请配置：\n" + GetCdnConfigHelp()
+	} else {
+		return "\n***********************以下是cdn配置数据***********************\n" + result
+	}
 }
 
 //获取cdn配置帮助提示
 func GetCdnConfigHelp() string {
 	tpl := CdnModel{
-		ProjectName: "对应svn工程配置中得工程名称",
+		ProjectName: "对应指令【"+commandName[CommandType_UpdateSvnProjectConfig]+"】配置中得工程名称",
 		CdnType:     "0:阿里云，1：华为云",
 		BackupPath:  "热更备份地址",
 		ResPaths:    []string{"第一个默认为测试地址，地址都为Bucket下得相对路径，且不能有反斜杠用/", "路径2开始为正式地址1，多个地址后面追加"},
 	}
-	return fmt.Sprintf("例：\n【%s：%s】 \n如多个配置用英文分号分割", commandName[CommandType_UpdateCdnConfig], tool.MarshalJson(tpl))
+	return fmt.Sprintf("例：\n【%s：%s】 \n如多个配置用分号分割", commandName[CommandType_UpdateCdnConfig], tool.MarshalJson(tpl))
 }
 
 //获取CDN配置数据
@@ -167,8 +174,8 @@ func GetCdnData(projectName, cdnName string) (
 		err = errors.New("获取cdn地址失败，分支名不能为空！")
 		return
 	}
-	_, projectCdnMap = getProjectCdnsData(projectName)
-	if _cdnModel, ok := projectCdnMap[cdnName]; ok {
+	_, cdnConfigMap = getProjectCdnsData(projectName)
+	if _cdnModel, ok := cdnConfigMap[cdnName]; ok {
 		return nil, _cdnModel.CdnType, _cdnModel.EndpointOfBucket, _cdnModel.BucketName,
 			_cdnModel.AccessKeyID, _cdnModel.AccessKeySecret, _cdnModel.BackupPath, _cdnModel.ResPaths
 	} else {
@@ -183,10 +190,10 @@ func getProjectCdnsData(projectName string) (string, map[string]*CdnModel) {
 	cdnDataFileName := "cdn.gob"
 	fileName := ProjectName2Md5(projectName) + cdnDataFileName
 	if fileName == lastProjectCdnFileName {
-		return fileName, projectCdnMap
+		return fileName, cdnConfigMap
 	}
-	projectCdnMap = make(map[string]*CdnModel)
-	tool.ReadGobFile(fileName, &projectCdnMap)
+	cdnConfigMap = make(map[string]*CdnModel)
+	tool.ReadGobFile(fileName, &cdnConfigMap)
 	lastProjectCdnFileName = fileName
-	return fileName, projectCdnMap
+	return fileName, cdnConfigMap
 }

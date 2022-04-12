@@ -27,9 +27,10 @@ const (
 	CommandType_UpdateSvrMachineConfig  = 12 //更新游戏服主机配置
 	CommandType_UpdateAndRestartSvr     = 13 //更新并重启外网测试服
 	CommandType_ListSvnLog              = 14 //打印svn日志
-	CommandType_UpdateUser              = 15 //更新用户
-	CommandType_CloseRobot              = 16 //关闭机器人
-	CommandType_Max                     = 17
+	CommandType_UpdateUserGroup         = 15 //更新用户组
+	CommandType_UpdateUser              = 16 //更新用户
+	CommandType_CloseRobot              = 17 //关闭机器人
+	CommandType_Max                     = 18
 )
 
 //自动构建指令
@@ -40,7 +41,7 @@ type AutoBuildCommand struct {
 	CommandParams string               //指令参数
 	HelpTips      string               //帮助提示
 	Func          autoBuildCommandFunc //指令处理函数
-	ProjectName   string               //项目名称（如钉钉群标题，一个群一个项目）
+	ProjectName   string               //项目名称（群标题，一个群一个项目）
 	WebHook       string               //回调地址
 	ResultFunc    AutoBuildResultFunc  //结果处理函数
 }
@@ -65,20 +66,21 @@ func init() {
 
 	//初始化指令名字
 	commandName[CommandType_Help] = "帮助"
-	commandName[CommandType_UpdateProjectConfig] = "配置项目"
-	commandName[CommandType_UpdateSvnProjectConfig] = "配置svn工程"
-	commandName[CommandType_UpdateCdnConfig] = "配置cdn"
+	commandName[CommandType_UpdateProjectConfig] = "项目"
+	commandName[CommandType_UpdateSvnProjectConfig] = "svn工程"
+	commandName[CommandType_UpdateCdnConfig] = "cdn"
 	commandName[CommandType_SvnMerge] = "分支合并"
 	commandName[CommandType_AutoBuildClient] = "客户端构建"
 	commandName[CommandType_PrintHotfixResList] = "输出热更资源"
 	commandName[CommandType_UploadHotfixRes2Test] = "上传热更资源到测试"
 	commandName[CommandType_UploadHotfixRes2Release] = "上传热更资源到正式"
 	commandName[CommandType_BackupHotfixRes] = "备份热更资源"
-	commandName[CommandType_UpdateSvrProgressConfig] = "配置游戏服务"
-	commandName[CommandType_UpdateSvrMachineConfig] = "配置服务器主机"
+	commandName[CommandType_UpdateSvrProgressConfig] = "游戏服务"
+	commandName[CommandType_UpdateSvrMachineConfig] = "服务器主机"
 	commandName[CommandType_UpdateAndRestartSvr] = "更新服务器"
 	commandName[CommandType_ListSvnLog] = "输出svn日志"
-	commandName[CommandType_UpdateUser] = "更新用户"
+	commandName[CommandType_UpdateUserGroup] = "用户组"
+	commandName[CommandType_UpdateUser] = "用户"
 	commandName[CommandType_UpdateTable] = "更新表格"
 	commandName[CommandType_CloseRobot] = "关闭自动构建机器人"
 
@@ -88,17 +90,19 @@ func init() {
 	commandHelpTips[CommandType_UpdateCdnConfig] = GetCdnConfigHelp()
 	commandHelpTips[CommandType_SvnMerge] = GetMergeCommandHelp()
 	commandHelpTips[CommandType_AutoBuildClient] = GetClientBuildCommandHelp()
-	commonHelpTips := "例：【%s：%s】，参数（%s）是svn工程配置的ProjectName（指令【更新svn工程配置】不带参数可以列出所有svn工程配置）"
+	commonHelpTips := "例：【%s：%s】，参数（%s）是指令【" + commandName[CommandType_UpdateSvnProjectConfig] + "】的ProjectName"
 	commandHelpTips[CommandType_PrintHotfixResList] = fmt.Sprintf(commonHelpTips, commandName[CommandType_PrintHotfixResList], "外网测试包", "外网测试包")
 	commandHelpTips[CommandType_UploadHotfixRes2Test] = fmt.Sprintf(commonHelpTips, commandName[CommandType_UploadHotfixRes2Test], "外网测试包", "外网测试包")
 	commandHelpTips[CommandType_UploadHotfixRes2Release] = fmt.Sprintf(commonHelpTips, commandName[CommandType_UploadHotfixRes2Release], "外网测试包", "外网测试包")
-	commandHelpTips[CommandType_BackupHotfixRes] = fmt.Sprintf("例：【%s：外网测试包,热更日志】，参数1（外网测试包）是svn工程配置的ProjectName（指令【更新svn工程配置】不带参数可以列出所有svn工程配置）\n参数2是备份日志", commandName[CommandType_BackupHotfixRes])
+	commandHelpTips[CommandType_BackupHotfixRes] = fmt.Sprintf("例：【%s：%s,%s】，参数1（%s）是指令【%s】的ProjectName\n参数2（%s）是备份日志",
+		commandName[CommandType_BackupHotfixRes], "外网测试包", "热更日志", "外网测试包", commandName[CommandType_UpdateSvnProjectConfig], "热更日志")
 	commandHelpTips[CommandType_UpdateSvrProgressConfig] = GetSvrProgressConfigHelp()
 	commandHelpTips[CommandType_UpdateSvrMachineConfig] = GetSvrMachineConfigHelp()
-	commandHelpTips[CommandType_UpdateAndRestartSvr] = fmt.Sprintf("例：【%s：外网测试服,后台】,其中外网测试服是%s的配置数据的服务器主机名，后台是%s的配置数据的游戏服务进程名",
+	commandHelpTips[CommandType_UpdateAndRestartSvr] = fmt.Sprintf("例：【%s：外网测试服,后台】,其中外网测试服是指令【%s】的配置数据的服务器主机名，后台是指令【%s】的配置数据的游戏服务进程名",
 		commandName[CommandType_UpdateAndRestartSvr], commandName[CommandType_UpdateSvrMachineConfig], commandName[CommandType_UpdateSvrProgressConfig])
 	commandHelpTips[CommandType_ListSvnLog] = fmt.Sprintf(commonHelpTips, commandName[CommandType_ListSvnLog], "开发分支", "开发分支")
 	commandHelpTips[CommandType_UpdateUser] = GetUserConfigHelp()
+	commandHelpTips[CommandType_UpdateUserGroup] = GetUserGroupConfigHelp()
 	commandHelpTips[CommandType_UpdateTable] = fmt.Sprintf(commonHelpTips, commandName[CommandType_UpdateTable], "研发表格", "研发表格")
 	commandHelpTips[CommandType_CloseRobot] = ""
 }
@@ -131,10 +135,22 @@ func GetCommand(commandType int) (autoBuildCommand AutoBuildCommand, ok bool) {
 }
 
 //获取指令帮助信息
-func GetCommandHelpInfo() (help string) {
+func GetCommandHelpInfo(projectName string) (help string) {
 	autoBuildCommandRWLock.RLock()
 	defer autoBuildCommandRWLock.RUnlock()
+	unOpenCommandList := GetUnopenCommandList(projectName)
+	help = "指令如下：\n"
 	for i := 0; i < CommandType_Max; i++ {
+		isUnOpen := false
+		for _, unOpenCommand := range unOpenCommandList {
+			if unOpenCommand == i {
+				isUnOpen = true
+				break
+			}
+		}
+		if isUnOpen {
+			continue
+		}
 		command, ok := autoBuildCommandMap[i]
 		if !ok {
 			errs := fmt.Sprintf("不存在编号为%d的指令，请添加！", i)
@@ -144,6 +160,10 @@ func GetCommandHelpInfo() (help string) {
 		}
 		help += fmt.Sprintf("%d:%s\n", i, command.Name)
 	}
+	help += fmt.Sprintf("\n输入指令名称或者编号选择操作，指令后加冒号和参数如【%s：%s】\n如果不清楚参数则输入帮助或者help会输出详细帮助提示如【%s：帮助】",
+		commandName[CommandType_UpdateTable],"研发表格",commandName[CommandType_UpdateTable])
+	help += "\n指令如果不带动词，表示配置型指令，配置型指令参数为空则会输出所有已有数据或者输入查询条件筛选出对应数据\n"
+	help += fmt.Sprintf("如果要执行多条指令，则指令间用->连接，如【%s：研发表格->%s：正式表格】",commandName[CommandType_UpdateTable],commandName[CommandType_UpdateTable])
 	return
 }
 
@@ -223,6 +243,13 @@ func AnalysisParam(requestParam string, commandType int) (err error, params []st
 
 	//参数不足
 	if requestParam == "" {
+		if commandType == CommandType_UpdateProjectConfig || commandType == CommandType_UpdateSvnProjectConfig ||
+			commandType == CommandType_UpdateCdnConfig || commandType == CommandType_UpdateSvrProgressConfig ||
+			commandType == CommandType_UpdateSvrMachineConfig || commandType == CommandType_UpdateAndRestartSvr ||
+			commandType == CommandType_UpdateUser || commandType == CommandType_UpdateUserGroup {
+			//可以不用参数
+			return nil, nil
+		}
 		return errors.New("参数不足，请输入帮助获取提示！！！"), nil
 	}
 
@@ -236,7 +263,9 @@ func AnalysisParam(requestParam string, commandType int) (err error, params []st
 		}
 		return errors.New("获取合并分支失败！"), nil
 	} else {
-		//根据逗号分割参数
+		//中文逗号和分号全部替换成英文逗号和分号，根据逗号分割参数
+		requestParam = strings.ReplaceAll(requestParam, "，", ",")
+		requestParam = strings.ReplaceAll(requestParam, "；", ";")
 		requestParams := strings.Split(requestParam, ",")
 		return nil, requestParams
 	}
@@ -246,7 +275,7 @@ func AnalysisParam(requestParam string, commandType int) (err error, params []st
 func GetShellParams(commandType int, commandParams []string, projectName, webHook string) (error, string) {
 	//不需要参数
 	if commandType == CommandType_Help || commandType == CommandType_CloseRobot {
-		return nil,""
+		return nil, ""
 	}
 
 	//先判断是否是服务器更新
@@ -329,4 +358,9 @@ func GetShellParams(commandType int, commandParams []string, projectName, webHoo
 		}
 	}
 	return nil, ""
+}
+
+//判断参数是否获取所有配置信息
+func JudgeIsSearchAllParam(commandParams string) bool {
+	return commandParams == "" || commandParams == "全部" || strings.ToLower(commandParams) == "all"
 }

@@ -1,20 +1,20 @@
 #!/bin/bash
-dirname=$1
+svrRoot=$1
+dirname=$2
 zipfile=${dirname}".zip"
-targetdir="/data/"${dirname}
 backfile=${dirname}".tgz"
 excludedir=${dirname}"/logdata"
 excuteFile="startAll.sh"
 
-cd /data
-#tar -czvf ${backfile} --exclude=${excludedir} --exclude=${zipfile} ${dirname}
-cd ${targetdir}
+cd ${svrRoot}
+tar -czvf ${backfile} --exclude=${excludedir} --exclude=${zipfile} ${dirname}
+cd ${dirname}
 unzip -o ${zipfile}
 
 if [ ! -x "$excuteFile" ]; then
-./stop.sh;sleep 10;./start.sh
+./stop.sh;sleep 5;start ./start.sh;exit
 else
-./stopAll.sh;sleep 10;./startAll.sh
+./stopAll.sh;sleep 10;./startAll.sh;exit
 fi
 
 

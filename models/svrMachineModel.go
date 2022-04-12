@@ -69,10 +69,10 @@ func UpdateSvrMachineData(projectName, svrConfig string) (result string) {
 			if svrModel.Account == "" {
 				svrModel.Account = _svrModel.Account
 			}
-			if svrModel.Psd == "" || svrModel.Psd == secretFlag{
+			if svrModel.Psd == "" || svrModel.Psd == secretFlag {
 				svrModel.Psd = _svrModel.Psd
 			}
-			if svrModel.Port == ""{
+			if svrModel.Port == "" {
 				svrModel.Port = _svrModel.Port
 			}
 			if svrModel.SvrRootPath == "" {
@@ -94,7 +94,7 @@ func UpdateSvrMachineData(projectName, svrConfig string) (result string) {
 }
 
 //获取一个项目所有服务器主机配置信息
-func GetAllSvrMachineDataOfOneProject(projectName string) string {
+func QuerySvrMachineDataOfOneProject(projectName, searchValue string) (result string) {
 	svrMachineDataLock.Lock()
 	defer svrMachineDataLock.Unlock()
 	_, svrMachineConfigMap = getProjectSvrMachineData(projectName)
@@ -102,9 +102,12 @@ func GetAllSvrMachineDataOfOneProject(projectName string) string {
 		return "当前没有主机配置信息，请配置：\n" + GetSvrMachineConfigHelp()
 	}
 
-	result := "\n***********************以下是已有的主机配置***********************\n"
 	tpl := SvrMachineModel{}
 	for _, v := range svrMachineConfigMap {
+		if !JudgeIsSearchAllParam(searchValue) && v.MachineName != searchValue {
+			//数据量不大，这里就不再做获取到了退出循环吧
+			continue
+		}
 		tpl.MachineName = v.MachineName
 		tpl.Ip = v.Ip
 		tpl.Platform = v.Platform
@@ -115,7 +118,12 @@ func GetAllSvrMachineDataOfOneProject(projectName string) string {
 		tpl.ProjectPath = v.ProjectPath
 		result += fmt.Sprintln(tool.MarshalJson(tpl) + "\n")
 	}
-	return result
+
+	if result == "" {
+		return "当前没有符合条件的主机配置信息，请配置：\n" + GetSvrMachineConfigHelp()
+	} else {
+		return "\n***********************以下是主机配置数据***********************\n" + result
+	}
 }
 
 //获取服务器主机配置帮助提示
@@ -130,7 +138,7 @@ func GetSvrMachineConfigHelp() string {
 		SvrRootPath: "服务器根目录",
 		ProjectPath: "工程地址",
 	}
-	return fmt.Sprintf("例：\n【%s：%s】 \n如多个配置用英文分号分割", commandName[CommandType_UpdateSvrMachineConfig], tool.MarshalJson(tpl))
+	return fmt.Sprintf("例：\n【%s：%s】 \n如多个配置用分号分割", commandName[CommandType_UpdateSvrMachineConfig], tool.MarshalJson(tpl))
 }
 
 //获取服务器主机配置数据

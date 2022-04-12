@@ -81,7 +81,7 @@ func UpdateSvnProject(projectName, svnProjectConfig string) (result string) {
 }
 
 //获取一个项目所有分支配置信息
-func GetAllSvnProjectsDataByProject(projectName string) string {
+func QuerySvnProjectsDataByProject(projectName, searchValue string) (result string) {
 	svnProjectDataLock.Lock()
 	defer svnProjectDataLock.Unlock()
 
@@ -90,32 +90,42 @@ func GetAllSvnProjectsDataByProject(projectName string) string {
 		return "当前没有svn工程信息，请配置：\n" + GetSvnProjectConfigHelp()
 	}
 
-	result := "\n***********************以下是已有的svn工程配置数据***********************\n"
 	for _, v := range svnProjectMap {
+		if !JudgeIsSearchAllParam(searchValue) && v.ProjectName != searchValue {
+			//数据量不大，这里就不再做获取到了退出循环吧
+			continue
+		}
 		result += fmt.Sprintln(tool.MarshalJson(v) + "\n")
 	}
-	return result
+	if result == "" {
+		return "当前没有符合条件的svn工程配置信息，请配置：\n" + GetSvnProjectConfigHelp()
+	} else {
+		return "\n***********************以下是svn工程配置数据***********************\n" + result
+	}
 }
 
 //获取svn工程配置帮助提示
 func GetSvnProjectConfigHelp() string {
 	tpl := SvnProjectModel{
-		ProjectName:              "svn工程名称",
-		ProjectPath:              "工程的绝对路径,注意不能有反斜杠,用/",
+		ProjectName:              "名称",
+		ProjectPath:              "工程的绝对路径",
 		ConflictAutoWayWhenMerge: "合并冲突时的自动处理方式：p,mf,tf等",
-		AutoBuildMethodList:      []string{"客户端自动构建方法名，如打lua代码BuildLuaCode", "打安卓白包方法BuildAndroidApk_Bai，后面依次增加"},
+		AutoBuildMethodList:      []string{},
 	}
-	return fmt.Sprintf("例：\n【%s：%s】 \n多个配置用英文分号分割", commandName[CommandType_UpdateSvnProjectConfig], tool.MarshalJson(tpl))
+	return fmt.Sprintf("例：\n【%s：%s】 \n其中路径不能有反斜杠,用/，AutoBuildMethodList对应客户端AutoBuild.cs定义的构建方法数组，如多个配置用分号分割",
+		commandName[CommandType_UpdateSvnProjectConfig], tool.MarshalJson(tpl))
 }
 
 //获取合并指令帮助
 func GetMergeCommandHelp() string {
-	return fmt.Sprintf("例：【%s：开发分支合并到策划分支】，开发分支和策划分支都是svn工程配置的ProjectName（指令【更新svn工程配置】不带参数可以列出所有svn工程配置）\n具体分支关系参见https://www.kdocs.cn/l/spWN1ZyWsEPr?f=131", commandName[CommandType_SvnMerge])
+	return fmt.Sprintf("例：【%s：开发分支合并到策划分支】，开发分支和策划分支都是指令【%s】的ProjectName\n具体分支关系参见https://www.kdocs.cn/l/spWN1ZyWsEPr?f=131",
+		commandName[CommandType_SvnMerge],commandName[CommandType_UpdateSvnProjectConfig])
 }
 
 //获取客户端构建帮助
 func GetClientBuildCommandHelp() string {
-	return fmt.Sprintf("例：【%s：外网测试包,BuildLuaCode】或【%s：外网测试包,0】，\n其中前两个参数是svn工程配置内容（指令【更新svn工程配置】不带参数可以列出所有svn工程配置）\n参数1是svn工程配置的ProjectName\n参数2是svn工程配置的AutoBuildMethodList方法数组中某个构建方法或其索引\n参数3选填，目前只有固定dev表示是development build，不填则表示默认的release build", commandName[CommandType_AutoBuildClient], commandName[CommandType_AutoBuildClient])
+	return fmt.Sprintf("例：【%s：外网测试包,BuildLuaCode】或【%s：外网测试包,0】\n参数1和2是指令【%s】里的ProjectName和AutoBuildMethodList方法数组中某个构建方法或其索引\n参数3选填，目前只有固定dev表示是development build，不填则表示默认的release build",
+		commandName[CommandType_AutoBuildClient], commandName[CommandType_AutoBuildClient],commandName[CommandType_UpdateSvnProjectConfig])
 }
 
 //判断工程是否存在

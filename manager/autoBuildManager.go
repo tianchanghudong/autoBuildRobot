@@ -56,6 +56,7 @@ func init() {
 	models.AddCommand(models.CommandType_UpdateAndRestartSvr, shellCommand)
 	models.AddCommand(models.CommandType_UpdateTable, shellCommand)
 
+	models.AddCommand(models.CommandType_UpdateUserGroup, updateUserGroupCommand)
 	models.AddCommand(models.CommandType_UpdateUser, updateUserCommand)
 	models.AddCommand(models.CommandType_ListSvnLog, listAllSvnLog)
 	models.AddCommand(models.CommandType_CloseRobot, shellCommand)
@@ -203,69 +204,66 @@ func checkSVNConflictAndNotifyManager(command models.AutoBuildCommand) (isConfli
 
 //执行帮助指令
 func helpCommand(command models.AutoBuildCommand) (string, error) {
-	help := "指令如下：\n"
-	help += models.GetCommandHelpInfo()
-	help += "\n输入指令名称或者编号选择操作，指令后加冒号和参数如【更新表格：研发表格】\n如果不清楚参数则输入帮助或者help会输出详细帮助提示如【更新表格：帮助】"
-	help += "\n如果不带参数则会输出所有已有数据如【更新用户】则会输出所有用户信息\n如果要执行多条指令，则指令间用->连接，如【更新表格：研发表格->更新表格：正式表格】"
-	return help, nil
+	return models.GetCommandHelpInfo(command.ProjectName), nil
 }
 
 //执行更新项目配置指令
 func updateProjectConfigCommand(command models.AutoBuildCommand) (string, error) {
 	projectConfig := command.CommandParams
-	if projectConfig == "" {
-		//如果为空则列出项目配置
-		return models.GetProjectData(command.ProjectName), nil
-	} else {
+	if strings.Contains(projectConfig,"{") {
+		//更新
 		return models.UpdateProject(command.ProjectName, projectConfig)
+	} else {
+		//获取项目数据
+		return models.GetProjectData(command.ProjectName),nil
 	}
 }
 
 //执行更新svn工程配置指令
 func updateSvnProjectConfigCommand(command models.AutoBuildCommand) (string, error) {
 	svnProjectConfig := command.CommandParams
-	if svnProjectConfig == "" {
-		//如果为空则列出所有分支
-		return models.GetAllSvnProjectsDataByProject(command.ProjectName), nil
-	} else {
+	if strings.Contains(svnProjectConfig,"{") {
 		//更新svn工程数据
 		return models.UpdateSvnProject(command.ProjectName, svnProjectConfig), nil
+	} else {
+		//查询配置数据
+		return models.QuerySvnProjectsDataByProject(command.ProjectName,svnProjectConfig), nil
 	}
 }
 
 //更新cdn配置
 func updateCdnConfigCommand(command models.AutoBuildCommand) (string, error) {
 	cdnConfig := command.CommandParams
-	if cdnConfig == "" {
-		//如果为空则列出所有cdn配置
-		return models.GetAllCdnDataOfOneProject(command.ProjectName), nil
-	} else {
+	if strings.Contains(cdnConfig,"{") {
 		//更新cdn配置
 		return models.UpdateCdn(command.ProjectName, cdnConfig), nil
+	} else {
+		//查询cdn配置数据
+		return models.QueryCdnDataOfOneProject(command.ProjectName,cdnConfig), nil
 	}
 }
 
 //更新服务进程配置
 func updateSvrProgressConfigCommand(command models.AutoBuildCommand) (string, error){
 	svrConfig := command.CommandParams
-	if svrConfig == "" {
-		//如果为空则列出所有svrProgress配置
-		return models.GetAllSvrProgressDataOfOneProject(command.ProjectName), nil
-	} else {
+	if strings.Contains(svrConfig,"{")  {
 		//更新svrProgress配置
 		return models.UpdateSvrProgressData(command.ProjectName, svrConfig), nil
+	} else {
+		//搜索svrProgress配置
+		return models.QueryProgressDataOfOneProject(command.ProjectName,svrConfig), nil
 	}
 }
 
 //更新服务主机配置
 func updateSvrMachineConfigCommand(command models.AutoBuildCommand) (string, error){
 	svrMachineConfig := command.CommandParams
-	if svrMachineConfig == "" {
-		//如果为空则列出所有svrMachine配置
-		return models.GetAllSvrMachineDataOfOneProject(command.ProjectName), nil
-	} else {
+	if strings.Contains(svrMachineConfig,"{") {
 		//更新svrMachine配置
 		return models.UpdateSvrMachineData(command.ProjectName, svrMachineConfig), nil
+	} else {
+		//查询数据
+		return models.QuerySvrMachineDataOfOneProject(command.ProjectName,svrMachineConfig), nil
 	}
 }
 
@@ -721,19 +719,27 @@ func backupHotfixRes(command models.AutoBuildCommand) (string, error) {
 	return result, nil
 }
 
-//更新用户指令
+//更新用户组
+func updateUserGroupCommand(command models.AutoBuildCommand) (result string, err error) {
+	userGroupInfo := command.CommandParams
+	if strings.Contains(userGroupInfo,"{"){
+		//更新用户数据
+		return models.UpdateUserGroup(userGroupInfo)
+	} else {
+		//查询用户组数据
+		return models.QueryUserGroupDatas(userGroupInfo),nil
+	}
+}
+
+//更新用户
 func updateUserCommand(command models.AutoBuildCommand) (result string, err error) {
 	userInfo := command.CommandParams
-	if userInfo == "" {
-		//如果为空则列出所有用户
-		result += "修改用户名字电话权限项目权限以英文逗号分割\n如【更新用户：张三,158xxx,14,xx项目】,如电话不修改则【张三,,14,xx项目】\n" +
-			"多个用户用英文分号分割,分配多个权限则用|分割，负数表示删除对应枚举权限,\n添加项目权限直接输项目名字，多个项目权限用|分割\n"
-		result += models.GetAllUserInfo(command.ProjectName)
-		return
-	} else {
+	if strings.Contains(userInfo,"{") {
 		//更新用户数据
-		result = models.UpdateUserInfo(command.ProjectName, userInfo)
-		return
+		return models.UpdateUserInfo(command.ProjectName, userInfo),nil
+	} else {
+		//查询用户数据
+		return models.QueryUsersDatas(command.ProjectName,userInfo),nil
 	}
 }
 
@@ -909,7 +915,7 @@ func UpdateBuildVerson(command models.AutoBuildCommand) (result string) {
 	buildVersionInfo := command.CommandParams
 	if buildVersionInfo == "" {
 		//如果为空则返回构建版本号
-		result += "更新版本号以打包命令枚举和版本号以英文逗号分割，多个则以英文分号分割，如设置打安卓QC包版本号为1则：【更新构建版本号：8,1】\n"
+		result += "更新版本号以打包命令枚举和版本号以逗号分割，多个则以分号分割，如设置打安卓QC包版本号为1则：【更新构建版本号：8,1】\n"
 		result += models.GetAllBuildVersionInfo()
 	} else {
 		//更新构建版本号

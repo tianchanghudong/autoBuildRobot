@@ -54,7 +54,7 @@ func SaveBuildVersion(buildVersionInfo string) (result string) {
 	for _, buildVersion := range buildVersionArr {
 		buildVersionInfos := strings.Split(buildVersion, ",")
 		if len(buildVersionInfos) < 2 {
-			result = "输入信息不合法，打包命令枚举和版本号以英文逗号分割，如设置打安卓QC包版本号为1则：8,1"
+			result = "输入信息不合法，打包命令枚举和版本号以逗号分割，如设置打安卓QC包版本号为1则：8,1"
 			continue
 		}
 		packCommandType, _ := strconv.Atoi(buildVersionInfos[0])

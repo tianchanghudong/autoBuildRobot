@@ -25,6 +25,7 @@ def zipdir(f, dirname):
 def package(projectPath,svrProgressProjDirName,platform,zipFileNameWithoutExt,zipDirList,zipFileList):
     GOPATH_ = projectPath + ":" + projectPath + "/package"
     os.environ["GOPATH"] = GOPATH_
+    print("gopath:"+os.environ.get("GOPATH"))
     os.chdir(projectPath + "/src/" + svrProgressProjDirName)
     if compile(platform) == False:
         return False
@@ -46,13 +47,13 @@ def package(projectPath,svrProgressProjDirName,platform,zipFileNameWithoutExt,zi
             elif file.find(svrProgressProjDirName) >= 0: 
                 #根据平台不同，编译的可执行文件后缀也不一样
                 if platform == "windows":
-                    if file.find("exe"):
-                        print("不存在文件：{0}，请检查".format(file))
+                    if file.find("exe") >= 0:
+                        print("windows，不存在文件：{0}，请检查".format(file))
                         return False 
                 else:
-                    print("不存在文件：{0}，请检查".format(file))
+                    print("other platform,不存在文件：{0}，请检查".format(file))
                     return False 
-            else:
+            elif file != "":
                 print("不存在文件：{0}，请检查".format(file))
                 return False            
     f.close()
@@ -60,7 +61,7 @@ def package(projectPath,svrProgressProjDirName,platform,zipFileNameWithoutExt,zi
     return True
 
 def compile(platform):
-    compile_result = os.system("GOOS={0} GOARCH=amd64 go build".format(platform))
+    compile_result = os.system("CGO_ENABLED=0 GOOS={0} GOARCH=amd64 go build".format(platform))
     if compile_result != 0:
         print("compile failed")
         return False
@@ -78,14 +79,14 @@ def scp_upload(upload_ip,port,account,psd,file,uploadPath):
 		scp.send_file(file, True, file)
 	print("scp upload OK")
 
-def update_svr(upload_ip,port,account,psd,platform,updateShPath, zipFileName):
+def update_svr(upload_ip,port,account,psd,platform,svrRootPath, zipFileName):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(upload_ip,port,account,psd,timeout=10)
-    sshCommand = 'cd {0};./mvandrestart_.sh {1}'.format(updateShPath,zipFileName)
+    sshCommand = 'cd /data/dus;chmod +x mvandrestart_.sh;./mvandrestart_.sh {0} {1}'.format(svrRootPath,zipFileName)
     if platform == "windows":
         #windows烦死了，，macssh到window切换盘符以及执行多条命令烦死了，干脆直接把脚本放到windows的用户下面，直接执行脚本
-        sshCommand = 'mvandrestart_.sh {0}'.format(zipFileName)
+        sshCommand = 'mvandrestart_.sh {0} {1}'.format(svrRootPath,zipFileName)
     stdin, stdout ,stderr = ssh.exec_command(sshCommand)
     out = stdout.readlines()
     #for o in out:
@@ -121,7 +122,6 @@ if __name__ == '__main__':
     uploadPath = os.path.join(svrRootPath,zipFileNameWithoutExt)
     scp_upload(upload_ip,port,account,psd,zipFileNameWithoutExt + ".zip",uploadPath)
     
-    #更新
-    updateShPath = os.path.join(svrRootPath, "dus")
-    update_svr(upload_ip,port,account,psd,platform,updateShPath, zipFileNameWithoutExt)
+    #更新    
+    update_svr(upload_ip,port,account,psd,platform,svrRootPath, zipFileNameWithoutExt)
     exit(0)

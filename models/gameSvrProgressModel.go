@@ -82,17 +82,20 @@ func UpdateSvrProgressData(projectName, svrConfig string) (result string) {
 }
 
 //获取一个项目所有服务进程配置信息
-func GetAllSvrProgressDataOfOneProject(projectName string) string {
+func QueryProgressDataOfOneProject(projectName, searchValue string) (result string) {
 	svrProgressDataLock.Lock()
 	defer svrProgressDataLock.Unlock()
 	_, svrProgressConfigMap = getProjectSvrProgressData(projectName)
 	if len(svrProgressConfigMap) <= 0 {
-		return "当前没有svr配置信息，请配置：\n" + GetSvrProgressConfigHelp()
+		return "当前没有服务器进程配置信息，请配置：\n" + GetSvrProgressConfigHelp()
 	}
 
-	result := "\n***********************以下是已有的svr配置***********************\n"
 	tpl := GameSvrProgressModel{}
 	for _, v := range svrProgressConfigMap {
+		if !JudgeIsSearchAllParam(searchValue) && v.SvrProgressName != searchValue {
+			//数据量不大，这里就不再做获取到了退出循环吧
+			continue
+		}
 		tpl.SvrProgressName = v.SvrProgressName
 		tpl.SvrProgressDirName = v.SvrProgressDirName
 		tpl.ZipFileList = v.ZipFileList
@@ -100,7 +103,11 @@ func GetAllSvrProgressDataOfOneProject(projectName string) string {
 		tpl.ZipFileNameWithoutExt = v.ZipFileNameWithoutExt
 		result += fmt.Sprintln(tool.MarshalJson(tpl) + "\n")
 	}
-	return result
+	if result == "" {
+		return "当前没有符合条件的服务器进程配置信息，请配置：\n" + GetSvrProgressConfigHelp()
+	} else {
+		return "\n***********************以下是服务器进程配置数据***********************\n" + result
+	}
 }
 
 //获取服务进程配置帮助提示
@@ -112,7 +119,7 @@ func GetSvrProgressConfigHelp() string {
 		ZipDirList:            "要压缩上传的所有文件夹名，多个用竖线分割",
 		ZipFileList:           "要压缩上传的所有文件名，多个用竖线分割",
 	}
-	return fmt.Sprintf("例：\n【%s：%s】 \n如多个配置用英文分号分割", commandName[CommandType_UpdateSvrProgressConfig], tool.MarshalJson(tpl))
+	return fmt.Sprintf("例：\n【%s：%s】 \n如多个配置用分号分割", commandName[CommandType_UpdateSvrProgressConfig], tool.MarshalJson(tpl))
 }
 
 //获取服务进程配置数据
