@@ -362,5 +362,5 @@ func GetShellParams(commandType int, commandParams []string, projectName, webHoo
 
 //判断参数是否获取所有配置信息
 func JudgeIsSearchAllParam(commandParams string) bool {
-	return commandParams == "" || commandParams == "全部" || strings.ToLower(commandParams) == "all"
+	return commandParams == "" || commandParams == "全部" || commandParams == "所有" || strings.ToLower(commandParams) == "all"
 }

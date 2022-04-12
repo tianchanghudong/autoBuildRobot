@@ -30,25 +30,36 @@ func UpdateUserGroup(groupConfig string) (result string, err error) {
 	defer userGroupDataLock.Unlock()
 
 	//解析数据
-	groupModel := new(UserGroupModel)
-	groupModel.CommandPermissions = make([]int, 0)
-	groupModel.ProjectPermissions = make([]string, 0)
-	err = tool.UnmarshJson([]byte(groupConfig), &groupModel)
-	if nil != err {
-		return
-	}
+	userGroupArr := strings.Split(groupConfig, ";")
+	for _, _groupConfig := range userGroupArr {
+		if _groupConfig == "" {
+			continue
+		}
+		groupModel := new(UserGroupModel)
+		groupModel.CommandPermissions = make([]int, 0)
+		groupModel.ProjectPermissions = make([]string, 0)
+		err = tool.UnmarshJson([]byte(_groupConfig), &groupModel)
+		if nil != err {
+			errMsg := "配置用户组异常，请检查：" + err.Error()
+			result += errMsg + "\n"
+			continue
+		}
 
-	//编码并存储
-	if strings.Contains(groupModel.GroupName, "-") {
-		//表示删除
-		groupName := strings.Replace(groupModel.GroupName, "-", "", 1)
-		delete(userGroupMap, groupName)
-	} else {
-		//新增或更新
-		userGroupMap[groupModel.GroupName] = groupModel
+		//编码并存储
+		if strings.Contains(groupModel.GroupName, "-") {
+			//表示删除
+			groupName := strings.Replace(groupModel.GroupName, "-", "", 1)
+			delete(userGroupMap, groupName)
+		} else {
+			//新增或更新
+			userGroupMap[groupModel.GroupName] = groupModel
+		}
 	}
 
 	tool.SaveGobFile(userGroupFileName, userGroupMap)
+	if result != "" {
+		return
+	}
 	result = "更新用户组成功"
 	return
 }

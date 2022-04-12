@@ -190,12 +190,7 @@ func GetAllUserInfo(projectName string, isCompany bool) string {
 	}
 	result := "\n***********************以下是所有的用户配置***********************\n"
 	for k, v := range users {
-		err, permissions, projectPermission := GetAllPermissionDesc(v.GroupName)
-		if nil != err {
-			result += fmt.Sprintf("%s,获取权限异常：%s \n", k, err.Error())
-			continue
-		}
-		result += fmt.Sprintf("%s,拥有指令权限：%s\n拥有项目权限：%s\n", k, permissions, projectPermission)
+		result += fmt.Sprintf("%s,所在分组：%s\n", k, v.GroupName)
 	}
 	return result
 }
@@ -209,7 +204,12 @@ func GetUserInfoByName(projectName, userName string) (userInfo string) {
 	for k, v := range companyUsersMap {
 		if k == userName {
 			userInfo += "\n***********************公司用户：***********************\n"
-			userInfo += tool.MarshalJson(v)
+			err, permissions, projectPermission := GetAllPermissionDesc(v.GroupName)
+			if nil != err {
+				userInfo += fmt.Sprintf("%s,获取权限异常：%s \n", k, err.Error())
+				continue
+			}
+			userInfo += fmt.Sprintf("%s,所在分组：%s,拥有指令权限：%s\n拥有项目权限：%s\n", k,v.GroupName, permissions, projectPermission)
 		}
 	}
 
@@ -218,7 +218,12 @@ func GetUserInfoByName(projectName, userName string) (userInfo string) {
 	for k, v := range projectUsers {
 		if k == userName {
 			userInfo += "\n***********************项目用户：***********************\n"
-			userInfo += tool.MarshalJson(v)
+			err, permissions, projectPermission := GetAllPermissionDesc(v.GroupName)
+			if nil != err {
+				userInfo += fmt.Sprintf("%s,获取权限异常：%s \n", k, err.Error())
+				continue
+			}
+			userInfo += fmt.Sprintf("%s,所在分组：%s,拥有指令权限：%s\n拥有项目权限：%s\n", k, v.GroupName,permissions, projectPermission)
 		}
 	}
 	if userInfo == "" {
@@ -269,9 +274,9 @@ func UpdateUserInfo(projectName, userInfo string) (result string) {
 	}
 
 	//再更新数据
-	userArr := strings.Split(userInfo, ";")
 	isUpdateProjectUser := false
 	isUpdateCompanyUser := false
+	userArr := strings.Split(userInfo, ";")
 	for _, user := range userArr {
 		if user == "" {
 			continue
