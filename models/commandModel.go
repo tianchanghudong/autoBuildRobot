@@ -98,8 +98,8 @@ func init() {
 		commandName[CommandType_BackupHotfixRes], "外网测试包", "热更日志", "外网测试包", commandName[CommandType_UpdateSvnProjectConfig], "热更日志")
 	commandHelpTips[CommandType_UpdateSvrProgressConfig] = GetSvrProgressConfigHelp()
 	commandHelpTips[CommandType_UpdateSvrMachineConfig] = GetSvrMachineConfigHelp()
-	commandHelpTips[CommandType_UpdateAndRestartSvr] = fmt.Sprintf("例：【%s：外网测试服,后台】,其中外网测试服是指令【%s】的配置数据的服务器主机名，后台是指令【%s】的配置数据的游戏服务进程名",
-		commandName[CommandType_UpdateAndRestartSvr], commandName[CommandType_UpdateSvrMachineConfig], commandName[CommandType_UpdateSvrProgressConfig])
+	commandHelpTips[CommandType_UpdateAndRestartSvr] = fmt.Sprintf("例：【%s：外网测试服,后台】,其中外网测试服是指令【%s】配置数据的svn工程名，后台是指令【%s】配置数据的游戏服务进程名",
+		commandName[CommandType_UpdateAndRestartSvr], commandName[CommandType_UpdateSvnProjectConfig], commandName[CommandType_UpdateSvrProgressConfig])
 	commandHelpTips[CommandType_ListSvnLog] = fmt.Sprintf(commonHelpTips, commandName[CommandType_ListSvnLog], "开发分支", "开发分支")
 	commandHelpTips[CommandType_UpdateUser] = GetUserConfigHelp()
 	commandHelpTips[CommandType_UpdateUserGroup] = GetUserGroupConfigHelp()
@@ -161,9 +161,9 @@ func GetCommandHelpInfo(projectName string) (help string) {
 		help += fmt.Sprintf("%d:%s\n", i, command.Name)
 	}
 	help += fmt.Sprintf("\n输入指令名称或者编号选择操作，指令后加冒号和参数如【%s：%s】\n如果不清楚参数则输入帮助或者help会输出详细帮助提示如【%s：帮助】",
-		commandName[CommandType_UpdateTable],"研发表格",commandName[CommandType_UpdateTable])
+		commandName[CommandType_UpdateTable], "研发表格", commandName[CommandType_UpdateTable])
 	help += "\n指令如果不带动词，表示配置型指令，配置型指令参数为空则会输出所有已有数据或者输入查询条件筛选出对应数据\n"
-	help += fmt.Sprintf("如果要执行多条指令，则指令间用->连接，如【%s：研发表格->%s：正式表格】",commandName[CommandType_UpdateTable],commandName[CommandType_UpdateTable])
+	help += fmt.Sprintf("如果要执行多条指令，则指令间用->连接，如【%s：研发表格->%s：正式表格】", commandName[CommandType_UpdateTable], commandName[CommandType_UpdateTable])
 	return
 }
 
@@ -278,25 +278,6 @@ func GetShellParams(commandType int, commandParams []string, projectName, webHoo
 		return nil, ""
 	}
 
-	//先判断是否是服务器更新
-	if commandType == CommandType_UpdateAndRestartSvr {
-		if len(commandParams) <= 1 {
-			return errors.New("参数不足"), ""
-		}
-
-		//依次为projectPath svrProgressProjDirName platform zipFileName zipDirList zipFileList upload_ip port account psd uploadPath updateCommand
-		err, ip, port, account, psd, platform, svrRootPath, projectPath := GetSvrMachineData(projectName, commandParams[0])
-		if err != nil {
-			return err, ""
-		}
-		err, dirName, zipFileNameWithoutExt, zipFileList, zipDirList := GetSvrProgressData(projectName, commandParams[1])
-		if err != nil {
-			return err, ""
-		}
-		return nil, fmt.Sprintf("\"%s\" \"%s\" \"%s\" \"%s\" \"%s\"  \"%s\"  \"%s\"  \"%s\"  \"%s\"  \"%s\"  \"%s\"",
-			projectPath, dirName, platform, zipFileNameWithoutExt, zipDirList, zipFileList, ip, port, account, psd, svrRootPath)
-	}
-
 	if len(commandParams) <= 0 {
 		return errors.New("参数不足"), ""
 	}
@@ -322,10 +303,21 @@ func GetShellParams(commandType int, commandParams []string, projectName, webHoo
 			if "" == mergeTargetProjectPath {
 				return errors.New("合并目标工程地址为空：" + svnProjectName2), ""
 			}
-			conflictAutoWayWhenMerge := GetConflictAutoWayWhenMerge(projectName, svnProjectName2)
+			conflictAutoWayWhenMerge := "tf"
+			if len(commandParams) > 2 {
+				//第三个参数表示合并冲突处理规则
+				if commandParams[2] == "tf" || commandParams[2] == "mf" || commandParams[2] == "p" {
+					conflictAutoWayWhenMerge = commandParams[2]
+				}
+			}
+
+			mergeLog := fmt.Sprintf("%s合并到%s", svnProjectName1, svnProjectName2)
+			if len(commandParams) > 3 {
+				mergeLog = commandParams[3]
+			}
 			//参数依次为合并目标工程地址、合并svn地址、冲突解决方式、合并日志
 			return nil, fmt.Sprintf("\"%s\" \"%s\" %s %s", mergeTargetProjectPath,
-				svnUrl, conflictAutoWayWhenMerge, fmt.Sprintf("%s合并到%s", svnProjectName1, svnProjectName2))
+				svnUrl, conflictAutoWayWhenMerge, mergeLog)
 		}
 	case CommandType_UpdateTable:
 		{
@@ -355,6 +347,28 @@ func GetShellParams(commandType int, commandParams []string, projectName, webHoo
 			}
 			//默认两个参数分别为项目名和构建方法，如果有多余两个参数则统一作为额外参数
 			return nil, fmt.Sprintf("\"%s\" \"%s\" \"%s\" \"%s\" \"%s\"", enginePath, projectPath, buildMethod, webHook, commandParams[2])
+		}
+	case CommandType_UpdateAndRestartSvr:
+		{
+			if len(commandParams) <= 1 {
+				return errors.New("参数不足"), ""
+			}
+
+			//根据svn工程名称获取目标主机配置
+			err, ip, port, account, psd, platform, svrRootPath := GetSvrMachineData(projectName, svnProjectName1)
+			if err != nil {
+				return err, ""
+			}
+
+			//根据参数2获取对应的服务进程配置
+			err, dirName, zipFileNameWithoutExt, zipFileList, zipDirList := GetSvrProgressData(projectName, commandParams[1])
+			if err != nil {
+				return err, ""
+			}
+
+			//依次为projectPath svrProgressProjDirName platform zipFileName zipDirList zipFileList upload_ip port account psd svrRootPath
+			return nil, fmt.Sprintf("\"%s\" \"%s\" \"%s\" \"%s\" \"%s\"  \"%s\"  \"%s\"  \"%s\"  \"%s\"  \"%s\"  \"%s\"",
+				projectPath, dirName, platform, zipFileNameWithoutExt, zipDirList, zipFileList, ip, port, account, psd, svrRootPath)
 		}
 	}
 	return nil, ""

@@ -12,7 +12,7 @@ cd ${dirname}
 unzip -o ${zipfile}
 
 if [ ! -x "$excuteFile" ]; then
-./stop.sh;sleep 5;start ./start.sh;exit
+./stop.sh;sleep 5;./start.sh;exit
 else
 ./stopAll.sh;sleep 10;./startAll.sh;exit
 fi

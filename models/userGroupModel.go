@@ -35,10 +35,10 @@ func UpdateUserGroup(groupConfig string) (result string, err error) {
 		if _groupConfig == "" {
 			continue
 		}
-		groupModel := new(UserGroupModel)
-		groupModel.CommandPermissions = make([]int, 0)
-		groupModel.ProjectPermissions = make([]string, 0)
-		err = tool.UnmarshJson([]byte(_groupConfig), &groupModel)
+		newGroupModel := new(UserGroupModel)
+		newGroupModel.CommandPermissions = make([]int, 0)
+		newGroupModel.ProjectPermissions = make([]string, 0)
+		err = tool.UnmarshJson([]byte(_groupConfig), &newGroupModel)
 		if nil != err {
 			errMsg := "配置用户组异常，请检查：" + err.Error()
 			result += errMsg + "\n"
@@ -46,13 +46,27 @@ func UpdateUserGroup(groupConfig string) (result string, err error) {
 		}
 
 		//编码并存储
-		if strings.Contains(groupModel.GroupName, "-") {
+		if strings.Contains(newGroupModel.GroupName, "-") {
 			//表示删除
-			groupName := strings.Replace(groupModel.GroupName, "-", "", 1)
+			groupName := strings.Replace(newGroupModel.GroupName, "-", "", 1)
 			delete(userGroupMap, groupName)
 		} else {
+			//增加或修改
+			if _groupModel, ok := userGroupMap[newGroupModel.GroupName]; ok {
+				//已存在，如果数据为空则用老数据
+				if newGroupModel.GroupName == "" {
+					newGroupModel.GroupName = _groupModel.GroupName
+				}
+				if  len(newGroupModel.ProjectPermissions) <= 0 {
+					newGroupModel.ProjectPermissions = _groupModel.ProjectPermissions
+				}
+				if  len(newGroupModel.CommandPermissions) <= 0 {
+					newGroupModel.CommandPermissions = _groupModel.CommandPermissions
+				}
+			}
+
 			//新增或更新
-			userGroupMap[groupModel.GroupName] = groupModel
+			userGroupMap[newGroupModel.GroupName] = newGroupModel
 		}
 	}
 

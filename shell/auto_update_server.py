@@ -83,7 +83,7 @@ def update_svr(upload_ip,port,account,psd,platform,svrRootPath, zipFileName):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(upload_ip,port,account,psd,timeout=10)
-    sshCommand = 'cd /data/dus;chmod +x mvandrestart_.sh;./mvandrestart_.sh {0} {1}'.format(svrRootPath,zipFileName)
+    sshCommand = 'cd {0}/dus;chmod +x mvandrestart_.sh;./mvandrestart_.sh {0} {1}'.format(svrRootPath,zipFileName)
     if platform == "windows":
         #windows烦死了，，macssh到window切换盘符以及执行多条命令烦死了，干脆直接把脚本放到windows的用户下面，直接执行脚本
         sshCommand = 'mvandrestart_.sh {0} {1}'.format(svrRootPath,zipFileName)

@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -16,6 +17,7 @@ type ProjectModel struct {
 	Manager                   string   `json:"Manager"`                   //管理员
 	UnopenCommandTypeList     []int    `json:"UnopenCommandTypeList"`     //开放的指令
 	ClientEnginePath          string   `json:"ClientEnginePath"`          //客户端引擎地址
+	AutoBuildClientMethodList []string `json:"AutoBuildClientMethodList"` //客户端构建方法列表
 	TempBanNormalUserCommands []string `json:"TempBanNormalUserCommands"` //临时禁止普通成员指令数组（如发版本时）
 }
 
@@ -37,6 +39,7 @@ func UpdateProject(projectName, projectConfig string) (result string, err error)
 	projectModel := new(ProjectModel)
 	projectModel.TempBanNormalUserCommands = make([]string, 0)
 	projectModel.UnopenCommandTypeList = make([]int, 0)
+	projectModel.AutoBuildClientMethodList = make([]string, 0)
 	err = tool.UnmarshJson([]byte(projectConfig), &projectModel)
 	if nil != err {
 		return
@@ -50,6 +53,10 @@ func UpdateProject(projectName, projectConfig string) (result string, err error)
 		}
 		if "" != projectModel.ClientEnginePath {
 			projectsMap[projectName].ClientEnginePath = projectModel.ClientEnginePath
+		}
+		if nil != projectModel.AutoBuildClientMethodList && len(projectModel.AutoBuildClientMethodList) > 0 {
+			//不要那么复杂了，就直接用新得替换，只能更新整个
+			projectsMap[projectName].AutoBuildClientMethodList = projectModel.AutoBuildClientMethodList
 		}
 		if nil != projectModel.TempBanNormalUserCommands && len(projectModel.TempBanNormalUserCommands) > 0 {
 			projectsMap[projectName].TempBanNormalUserCommands = projectModel.TempBanNormalUserCommands
@@ -84,10 +91,10 @@ func GetProjectConfigHelp() (result string) {
 	project := new(ProjectModel)
 	project.Manager = "项目管理员名字"
 	project.ClientEnginePath = "项目客户端引擎（如unity）路径"
+	project.AutoBuildClientMethodList = make([]string, 0)
 	project.UnopenCommandTypeList = make([]int, 0)
 	project.TempBanNormalUserCommands = make([]string, 0)
-	project.TempBanNormalUserCommands = append(project.TempBanNormalUserCommands, "发版本时禁止成员执行得指令名称，如分支合并")
-	return fmt.Sprintf("例：【%s：%s】\n其中，UnopenCommandTypeList是不开放的指令索引数组\n如多个配置用分号分割", commandName[CommandType_UpdateProjectConfig], tool.MarshalJson(project))
+	return fmt.Sprintf("例：【%s：%s】\n其中，UnopenCommandTypeList是不开放的指令索引数组,TempBanNormalUserCommands是临时要禁用的指令名称或者项目名称\nAutoBuildMethodList对应客户端AutoBuild.cs定义的构建方法数组\n如多个配置用分号分割", commandName[CommandType_UpdateProjectConfig], tool.MarshalJson(project))
 }
 
 //获取项目管理员
@@ -111,6 +118,25 @@ func GetProjectClientEnginePath(projectName string) (error, string) {
 	return errors.New("项目客户端引擎路径失败，项目不存在,请添加！！！"), ""
 }
 
+//根据参数获取构建方法
+func GetBuildMethod(projectName, svnProjectName, buildMethodParam string) (error, string) {
+	intParam, err2Int := strconv.Atoi(buildMethodParam)
+	if err2Int != nil {
+		intParam = -1
+	}
+	projectDataLock.Lock()
+	defer projectDataLock.Unlock()
+	if project, ok := projectsMap[projectName]; ok {
+		for k, v := range project.AutoBuildClientMethodList {
+			if k == intParam || v == buildMethodParam {
+				return nil, v
+			}
+		}
+	}
+
+	return errors.New("获取构建方法失败：" + buildMethodParam), ""
+}
+
 //判断是否为管理员
 func JudgeIsManager(projectName, userName string) bool {
 	projectDataLock.Lock()
@@ -123,7 +149,7 @@ func JudgeIsManager(projectName, userName string) bool {
 	return false
 }
 
-//获取不开放的指令  haoxbuxuyao
+//获取不开放的指令
 func GetUnopenCommandList(projectName string) (commandList []int) {
 	projectDataLock.Lock()
 	defer projectDataLock.Unlock()

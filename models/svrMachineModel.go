@@ -13,12 +13,11 @@ import (
 type SvrMachineModel struct {
 	MachineName string `json:"MachineName"` //服务器主机名
 	Platform    string `json:"Platform"`    //构建目标平台
-	Ip          string `json:"Ip"`
-	Port        string `json:"Port"`
-	Account     string `json:"Account"`
-	Psd         string `json:"Psd"`
-	SvrRootPath string `json:"SvrRootPath"`
-	ProjectPath string `json:"ProjectPath"` //项目地址
+	Ip          string `json:"Ip"`          //ip
+	Port        string `json:"Port"`        //端口
+	Account     string `json:"Account"`     //账号
+	Psd         string `json:"Psd"`         //密码
+	SvrRootPath string `json:"SvrRootPath"` //服务器根目录
 }
 
 var lastSvrMachineConfigFileName string             //上一次的服务器主机配置数据文件名（基本一个项目一个文件）
@@ -57,6 +56,12 @@ func UpdateSvrMachineData(projectName, svrConfig string) (result string) {
 			continue
 		}
 
+		//判断svn工程是否存在
+		if !JudgeSvnProjectIsExist(projectName, svrModel.MachineName) {
+			result += fmt.Sprintf("不存在%s工程，请先用【%s】指令添加！\n", svrModel.MachineName, commandName[CommandType_UpdateSvnProjectConfig])
+			continue
+		}
+
 		//增加或修改
 		if _svrModel, ok := svrMachineConfigMap[svrModel.MachineName]; ok {
 			//已存在，如果数据为空则用老数据
@@ -77,9 +82,6 @@ func UpdateSvrMachineData(projectName, svrConfig string) (result string) {
 			}
 			if svrModel.SvrRootPath == "" {
 				svrModel.SvrRootPath = _svrModel.SvrRootPath
-			}
-			if svrModel.ProjectPath == "" {
-				svrModel.ProjectPath = _svrModel.ProjectPath
 			}
 		}
 		svrMachineConfigMap[svrModel.MachineName] = svrModel
@@ -115,7 +117,6 @@ func QuerySvrMachineDataOfOneProject(projectName, searchValue string) (result st
 		tpl.Psd = secretFlag
 		tpl.Port = v.Port
 		tpl.SvrRootPath = v.SvrRootPath
-		tpl.ProjectPath = v.ProjectPath
 		result += fmt.Sprintln(tool.MarshalJson(tpl) + "\n")
 	}
 
@@ -129,20 +130,20 @@ func QuerySvrMachineDataOfOneProject(projectName, searchValue string) (result st
 //获取服务器主机配置帮助提示
 func GetSvrMachineConfigHelp() string {
 	tpl := SvrMachineModel{
-		MachineName: "服务器主机名",
-		Platform:    "平台",
+		MachineName: "指令【" + commandName[CommandType_UpdateSvnProjectConfig] + "】为了节省关联字段，所以这里跟其一样名称关联",
+		Platform:    "构建目标平台，如linux windows darwin等",
 		Ip:          "ip",
 		Port:        "端口",
 		Psd:         "密码",
 		Account:     "账号",
 		SvrRootPath: "服务器根目录",
-		ProjectPath: "工程地址",
 	}
-	return fmt.Sprintf("例：\n【%s：%s】 \n如多个配置用分号分割", commandName[CommandType_UpdateSvrMachineConfig], tool.MarshalJson(tpl))
+	return fmt.Sprintf("服务器主机配置可理解为更新服务器需要的svn工程配置的补充字段吧\n配置例子：\n【%s：%s】\n如果多个配置用分号分割",
+		commandName[CommandType_UpdateSvrMachineConfig], tool.MarshalJson(tpl))
 }
 
 //获取服务器主机配置数据
-func GetSvrMachineData(projectName, svrMachineName string) (err error, ip, port, account, psd, platform, svrRootPath, projectPath string) {
+func GetSvrMachineData(projectName, svrMachineName string) (err error, ip, port, account, psd, platform, svrRootPath string) {
 	svrMachineDataLock.Lock()
 	defer svrMachineDataLock.Unlock()
 	if svrMachineName == "" {
@@ -151,7 +152,7 @@ func GetSvrMachineData(projectName, svrMachineName string) (err error, ip, port,
 	}
 	_, svrMachineConfigMap = getProjectSvrMachineData(projectName)
 	if _svrModel, ok := svrMachineConfigMap[svrMachineName]; ok {
-		return nil, _svrModel.Ip, _svrModel.Port, _svrModel.Account, _svrModel.Psd, _svrModel.Platform, _svrModel.SvrRootPath, _svrModel.ProjectPath
+		return nil, _svrModel.Ip, _svrModel.Port, _svrModel.Account, _svrModel.Psd, _svrModel.Platform, _svrModel.SvrRootPath
 	} else {
 		err = errors.New(svrMachineName + "主机配置不存在，请添加！")
 		return

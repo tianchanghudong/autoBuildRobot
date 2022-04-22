@@ -187,6 +187,31 @@ func CopyFile(dstName, srcName string) (written int64, err error) {
 	return io.Copy(dst, src)
 }
 
+//判断文件夹是否存在
+func PathExists(path string)(bool,error){
+	_,err := os.Stat(path)
+	if err == nil{
+		return true,nil
+	}
+	//isnotexist来判断，是不是不存在的错误
+	if os.IsNotExist(err){	//如果返回的错误类型使用os.isNotExist()判断为true，说明文件或者文件夹不存在
+		return false,nil
+	}
+	return false,err//如果有错误了，但是不是不存在的错误，所以把这个错误原封不动的返回
+}
+
+//创建文件夹
+func CreateDateDir(_path string){
+	if _, err := os.Stat(_path); os.IsNotExist(err) {
+		// 必须分成两步
+		// 先创建文件夹
+		os.Mkdir(_path, 0777)
+		// 再修改权限
+		os.Chmod(_path, 0777)
+	}
+	return
+}
+
 //计算文件md5值
 func CalcMd5(filePath string) string {
 	data, err := ioutil.ReadFile(filePath)

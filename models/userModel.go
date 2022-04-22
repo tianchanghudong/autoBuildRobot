@@ -73,7 +73,7 @@ func JudgeIsHadPermission(commandType int, projectName, useName, commandParams s
 		return true, ""
 	}
 
-	//获取分支名称
+	//解析参数，获取第一个svn工程配置名
 	err, params := AnalysisParam(commandParams, commandType)
 	if nil != err {
 		return false, err.Error()

@@ -3,21 +3,18 @@ package models
 import (
 	"autobuildrobot/log"
 	"autobuildrobot/tool"
-	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 )
 
 //svn工程，区别于ProjectModel，一个ProjectModel对应多个SvnProjectModel
 type SvnProjectModel struct {
-	ProjectName              string   `json:"ProjectName"`              //工程名称
-	ProjectPath              string   `json:"ProjectPath"`              //工程地址
-	SvnUrl                   string   `json:"SvnUrl"`                   //svn地址
-	ConflictAutoWayWhenMerge string   `json:"ConflictAutoWayWhenMerge"` //合并冲突处理方式
-	LastGetSvnLogTime        int64    `json:"-"`                        //上次获取svn日志时间
-	AutoBuildMethodList      []string `json:"AutoBuildMethodList"`      //项目自动构建方法列表
+	ProjectName        string `json:"ProjectName"`        //工程名称
+	ProjectPath        string `json:"ProjectPath"`        //工程地址
+	SvnUrl             string `json:"SvnUrl"`             //svn地址
+	SvnExternalKeyword string `json:"SvnExternalKeyword"` //外链关键字
+	LastGetSvnLogTime  int64  `json:"-"`                  //上次获取svn日志时间
 }
 
 var lastProjectFileName string                //上一个项目的svn工程数据文件名（基本一个项目一个svn工程数据文件）
@@ -63,12 +60,8 @@ func UpdateSvnProject(projectName, svnProjectConfig string) (result string) {
 			if svnProjectModel.SvnUrl == "" {
 				svnProjectModel.SvnUrl = oldSvnProject.SvnUrl
 			}
-			if svnProjectModel.ConflictAutoWayWhenMerge == "" {
-				svnProjectModel.ConflictAutoWayWhenMerge = oldSvnProject.ConflictAutoWayWhenMerge
-			}
-			if nil == svnProjectModel.AutoBuildMethodList || len(svnProjectModel.AutoBuildMethodList) <= 0 {
-				//不要那么复杂了，就直接用新得替换，只能更新整个
-				svnProjectModel.AutoBuildMethodList = oldSvnProject.AutoBuildMethodList
+			if svnProjectModel.SvnExternalKeyword == "" {
+				svnProjectModel.SvnExternalKeyword = oldSvnProject.SvnExternalKeyword
 			}
 		}
 		svnProjectMap[svnProjectModel.ProjectName] = svnProjectModel
@@ -107,25 +100,24 @@ func QuerySvnProjectsDataByProject(projectName, searchValue string) (result stri
 //获取svn工程配置帮助提示
 func GetSvnProjectConfigHelp() string {
 	tpl := SvnProjectModel{
-		ProjectName:              "名称",
-		ProjectPath:              "工程的绝对路径",
-		ConflictAutoWayWhenMerge: "合并冲突时的自动处理方式：p,mf,tf等",
-		AutoBuildMethodList:      []string{},
+		ProjectName:        "svn工程名称",
+		ProjectPath:        "工程的绝对路径",
+		SvnExternalKeyword: "工程包含的外链关键字，用来构建的时候判断外链有没有修改，目前只简单考虑表格外链情况",
 	}
-	return fmt.Sprintf("例：\n【%s：%s】 \n其中路径不能有反斜杠,用/，AutoBuildMethodList对应客户端AutoBuild.cs定义的构建方法数组，如多个配置用分号分割",
+	return fmt.Sprintf("svn工程配置是整个构建的最核心配置，它告诉基本所有操作需要的工程位置和svn地址\n配置例子：\n【%s：%s】 \n其中路径不能有反斜杠,用/，如多个配置用分号分割",
 		commandName[CommandType_UpdateSvnProjectConfig], tool.MarshalJson(tpl))
 }
 
 //获取合并指令帮助
 func GetMergeCommandHelp() string {
 	return fmt.Sprintf("例：【%s：开发分支合并到策划分支】，开发分支和策划分支都是指令【%s】的ProjectName\n具体分支关系参见https://www.kdocs.cn/l/spWN1ZyWsEPr?f=131",
-		commandName[CommandType_SvnMerge],commandName[CommandType_UpdateSvnProjectConfig])
+		commandName[CommandType_SvnMerge], commandName[CommandType_UpdateSvnProjectConfig])
 }
 
 //获取客户端构建帮助
 func GetClientBuildCommandHelp() string {
 	return fmt.Sprintf("例：【%s：外网测试包,BuildLuaCode】或【%s：外网测试包,0】\n参数1和2是指令【%s】里的ProjectName和AutoBuildMethodList方法数组中某个构建方法或其索引\n参数3选填，目前只有固定dev表示是development build，不填则表示默认的release build",
-		commandName[CommandType_AutoBuildClient], commandName[CommandType_AutoBuildClient],commandName[CommandType_UpdateSvnProjectConfig])
+		commandName[CommandType_AutoBuildClient], commandName[CommandType_AutoBuildClient], commandName[CommandType_UpdateSvnProjectConfig])
 }
 
 //判断工程是否存在
@@ -148,6 +140,18 @@ func GetSvnPath(projectName, svnProjectName string) string {
 	return svnProjectModel.SvnUrl
 }
 
+//获取svn外链关键字
+func GetSvnExternalKeyword(projectName, svnProjectName string) string {
+	svnProjectDataLock.Lock()
+	defer svnProjectDataLock.Unlock()
+	svnProjectModel := getSvnProjectData(projectName, svnProjectName)
+	if nil == svnProjectModel {
+		log.Error("获取工程svn地址，不存在svn工程，请添加")
+		return ""
+	}
+	return svnProjectModel.SvnExternalKeyword
+}
+
 //获取svn工程地址
 func GetSvnProjectPath(projectName, svnProjectName string) string {
 	svnProjectDataLock.Lock()
@@ -158,38 +162,6 @@ func GetSvnProjectPath(projectName, svnProjectName string) string {
 		return ""
 	}
 	return svnProjectModel.ProjectPath
-}
-
-//获取冲突自动处理方式
-func GetConflictAutoWayWhenMerge(projectName, svnProjectName string) string {
-	svnProjectDataLock.Lock()
-	defer svnProjectDataLock.Unlock()
-	svnProjectModel := getSvnProjectData(projectName, svnProjectName)
-	if nil == svnProjectModel {
-		log.Error("获取冲突自动处理方式失败，不存在svn工程数据，请添加")
-		return ""
-	}
-	return svnProjectModel.ConflictAutoWayWhenMerge
-}
-
-//根据参数获取构建方法
-func GetBuildMethod(projectName, svnProjectName, buildMethodParam string) (error, string) {
-	intParam, err2Int := strconv.Atoi(buildMethodParam)
-	if err2Int != nil {
-		intParam = -1
-	}
-	svnProjectDataLock.Lock()
-	defer svnProjectDataLock.Unlock()
-	svnProjectModel := getSvnProjectData(projectName, svnProjectName)
-	if nil == svnProjectModel {
-		return errors.New("获取构建方法失败，不存在svn工程数据，请添加"), ""
-	}
-	for k, v := range svnProjectModel.AutoBuildMethodList {
-		if k == intParam || v == buildMethodParam {
-			return nil, v
-		}
-	}
-	return errors.New("获取构建方法失败：" + buildMethodParam), ""
 }
 
 //获取上次获取svn日志时间

@@ -1,7 +1,6 @@
 package models
 
 import (
-	"autobuildrobot/log"
 	"autobuildrobot/tool"
 	"errors"
 	"fmt"
@@ -11,7 +10,7 @@ import (
 
 //CDN配置
 type CdnModel struct {
-	ProjectName      string   `json:"ProjectName"`      //工程名称（对应SvnProjectModel工程名）
+	CdnName          string   `json:"CdnName"`          //工程名称（对应SvnProjectModel工程名）
 	CdnType          string   `json:"CdnType"`          //cdn类型,对应cdn.CdnType类型
 	EndpointOfBucket string   `json:"EndpointOfBucket"` //用户Bucket所在数据中心的访问域名
 	BucketName       string   `json:"BucketName"`       //Bucket名称
@@ -45,31 +44,28 @@ func UpdateCdn(projectName, cdnConfig string) (result string) {
 		}
 		cdnModel := new(CdnModel)
 		tool.UnmarshJson([]byte(cdn), &cdnModel)
-		if cdnModel.ProjectName == "" {
+		if cdnModel.CdnName == "" {
 			errMsg := "cdn配置工程名不能为空：" + cdn
-			log.Error(errMsg)
 			result += (errMsg + "\n")
 			continue
 		}
 
 		//删除配置
-		if strings.Contains(cdnModel.ProjectName, "-") {
+		if strings.Contains(cdnModel.CdnName, "-") {
 			//负号作为删除标记吧
-			delBranch := strings.ReplaceAll(cdnModel.ProjectName, "-", "")
+			delBranch := strings.ReplaceAll(cdnModel.CdnName, "-", "")
 			delete(cdnConfigMap, delBranch)
 			continue
 		}
 
-		//判断工程是否存在
-		if !JudgeSvnProjectIsExist(projectName, cdnModel.ProjectName) {
-			errMsg := fmt.Sprintf("不存在%s工程，请先【更新svn工程配置】指令添加！\n", cdnModel.ProjectName)
-			log.Error(errMsg)
-			result += errMsg
+		//判断svn工程是否存在
+		if !JudgeSvnProjectIsExist(projectName, cdnModel.CdnName) {
+			result += fmt.Sprintf("不存在%s工程，请先用【%s】指令添加！\n", cdnModel.CdnName, commandName[CommandType_UpdateSvnProjectConfig])
 			continue
 		}
 
 		//增加或修改
-		if _cdnModel, ok := cdnConfigMap[cdnModel.ProjectName]; ok {
+		if _cdnModel, ok := cdnConfigMap[cdnModel.CdnName]; ok {
 			//已存在，如果数据为空则用老数据
 			if cdnModel.CdnType == "" {
 				cdnModel.CdnType = _cdnModel.CdnType
@@ -111,7 +107,7 @@ func UpdateCdn(projectName, cdnConfig string) (result string) {
 				cdnModel.ResPaths = append(cdnModel.ResPaths, path)
 			}
 		}
-		cdnConfigMap[cdnModel.ProjectName] = cdnModel
+		cdnConfigMap[cdnModel.CdnName] = cdnModel
 	}
 
 	//编码并存储
@@ -133,11 +129,11 @@ func QueryCdnDataOfOneProject(projectName, searchValue string) (result string) {
 
 	tpl := CdnModel{}
 	for _, v := range cdnConfigMap {
-		if !JudgeIsSearchAllParam(searchValue) && v.ProjectName != searchValue {
+		if !JudgeIsSearchAllParam(searchValue) && v.CdnName != searchValue {
 			//数据量不大，这里就不再做获取到了退出循环吧
 			continue
 		}
-		tpl.ProjectName = v.ProjectName
+		tpl.CdnName = v.CdnName
 		tpl.CdnType = v.CdnType
 		tpl.EndpointOfBucket = v.EndpointOfBucket
 		tpl.BucketName = v.BucketName
@@ -157,12 +153,12 @@ func QueryCdnDataOfOneProject(projectName, searchValue string) (result string) {
 //获取cdn配置帮助提示
 func GetCdnConfigHelp() string {
 	tpl := CdnModel{
-		ProjectName: "对应指令【"+commandName[CommandType_UpdateSvnProjectConfig]+"】配置中得工程名称",
-		CdnType:     "0:阿里云，1：华为云",
-		BackupPath:  "热更备份地址",
-		ResPaths:    []string{"第一个默认为测试地址，地址都为Bucket下得相对路径，且不能有反斜杠用/", "路径2开始为正式地址1，多个地址后面追加"},
+		CdnName:    "指令【" + commandName[CommandType_UpdateSvnProjectConfig] + "】为了节省关联字段，所以用名称一样关联",
+		CdnType:    "0:阿里云，1：华为云",
+		BackupPath: "热更备份地址",
+		ResPaths:   []string{"第一个默认为测试地址，地址都为Bucket下得相对路径，且不能有反斜杠用/", "路径2开始为正式地址1，多个地址后面追加"},
 	}
-	return fmt.Sprintf("例：\n【%s：%s】 \n如多个配置用分号分割", commandName[CommandType_UpdateCdnConfig], tool.MarshalJson(tpl))
+	return fmt.Sprintf("cdn配置理解为热更需要的工程配置的补充字段吧\n例：\n【%s：%s】 \n如果多个配置用分号分割", commandName[CommandType_UpdateCdnConfig], tool.MarshalJson(tpl))
 }
 
 //获取CDN配置数据
