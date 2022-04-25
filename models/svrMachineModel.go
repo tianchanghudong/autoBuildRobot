@@ -58,7 +58,7 @@ func UpdateSvrMachineData(projectName, svrConfig string) (result string) {
 
 		//判断svn工程是否存在
 		if !JudgeSvnProjectIsExist(projectName, svrModel.MachineName) {
-			result += fmt.Sprintf("不存在%s工程，请先用【%s】指令添加！\n", svrModel.MachineName, commandName[CommandType_UpdateSvnProjectConfig])
+			result += fmt.Sprintf("不存在%s工程，请先用【%s】指令添加！\n", svrModel.MachineName, commandName[CommandType_SvnProjectConfig])
 			continue
 		}
 
@@ -130,7 +130,7 @@ func QuerySvrMachineDataOfOneProject(projectName, searchValue string) (result st
 //获取服务器主机配置帮助提示
 func GetSvrMachineConfigHelp() string {
 	tpl := SvrMachineModel{
-		MachineName: "指令【" + commandName[CommandType_UpdateSvnProjectConfig] + "】为了节省关联字段，所以这里跟其一样名称关联",
+		MachineName: "指令【" + commandName[CommandType_SvnProjectConfig] + "】为了节省关联字段，所以这里跟其一样名称关联",
 		Platform:    "构建目标平台，如linux windows darwin等",
 		Ip:          "ip",
 		Port:        "端口",
@@ -139,7 +139,7 @@ func GetSvrMachineConfigHelp() string {
 		SvrRootPath: "服务器根目录",
 	}
 	return fmt.Sprintf("服务器主机配置可理解为更新服务器需要的svn工程配置的补充字段吧\n配置例子：\n【%s：%s】\n如果多个配置用分号分割",
-		commandName[CommandType_UpdateSvrMachineConfig], tool.MarshalJson(tpl))
+		commandName[CommandType_SvrMachineConfig], tool.MarshalJson(tpl))
 }
 
 //获取服务器主机配置数据

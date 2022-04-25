@@ -240,7 +240,7 @@ func GetUserConfigHelp() string {
 	userModel.PhoneNum = "电话号码"
 	userModel.IsProjectUser = false
 	return fmt.Sprintf("例：\n【%s：%s】\n其中：IsProjectUser如果true则表示该用户属于项目，否则默认的false属于公司用户\n多个配置用分号分割",
-		commandName[CommandType_UpdateUser], tool.MarshalJson(userModel))
+		commandName[CommandType_User], tool.MarshalJson(userModel))
 }
 
 //更新用户数据

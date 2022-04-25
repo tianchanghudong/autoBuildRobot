@@ -13,24 +13,25 @@ import (
 //指令类型
 const (
 	CommandType_Help                    = 0  //帮助
-	CommandType_UpdateProjectConfig     = 1  //更新项目配置
-	CommandType_UpdateSvnProjectConfig  = 2  //更新svn工程配置
-	CommandType_UpdateCdnConfig         = 3  //更新cdn配置
-	CommandType_SvnMerge                = 4  //分支合并
-	CommandType_UpdateTable             = 5  //更新表格
-	CommandType_AutoBuildClient         = 6  //客户端自动构建
-	CommandType_PrintHotfixResList      = 7  //输出热更资源列表
-	CommandType_UploadHotfixRes2Test    = 8  //上传测试热更资源
-	CommandType_UploadHotfixRes2Release = 9  //上传正式热更资源
-	CommandType_BackupHotfixRes         = 10 //备份热更资源
-	CommandType_UpdateSvrProgressConfig = 11 //更新游戏服务进程配置
-	CommandType_UpdateSvrMachineConfig  = 12 //更新游戏服主机配置
-	CommandType_UpdateAndRestartSvr     = 13 //更新并重启外网测试服
-	CommandType_ListSvnLog              = 14 //打印svn日志
-	CommandType_UpdateUserGroup         = 15 //更新用户组
-	CommandType_UpdateUser              = 16 //更新用户
-	CommandType_CloseRobot              = 17 //关闭机器人
-	CommandType_Max                     = 18
+	CommandType_ProjectConfig           = 1  //项目
+	CommandType_SvnProjectConfig        = 2  //svn工程
+	CommandType_CdnConfig               = 3  //cdn
+	CommandType_CheckOutSvnProject      = 4  //检出svn工程
+	CommandType_SvnMerge                = 5  //分支合并
+	CommandType_UpdateTable             = 6  //更新表格
+	CommandType_AutoBuildClient         = 7  //客户端自动构建
+	CommandType_PrintHotfixResList      = 8  //输出热更资源列表
+	CommandType_UploadHotfixRes2Test    = 9  //上传测试热更资源
+	CommandType_UploadHotfixRes2Release = 10 //上传正式热更资源
+	CommandType_BackupHotfixRes         = 11 //备份热更资源
+	CommandType_SvrProgressConfig       = 12 //游戏服务进程
+	CommandType_SvrMachineConfig        = 13 //游戏服主机
+	CommandType_UpdateAndRestartSvr     = 14 //更新并重启服务器
+	CommandType_ListSvnLog              = 15 //列出svn日志
+	CommandType_UserGroup               = 16 //用户组
+	CommandType_User                    = 17 //用户
+	CommandType_CloseRobot              = 18 //关闭机器人
+	CommandType_Max                     = 19
 )
 
 //自动构建指令
@@ -66,43 +67,45 @@ func init() {
 
 	//初始化指令名字
 	commandName[CommandType_Help] = "帮助"
-	commandName[CommandType_UpdateProjectConfig] = "项目"
-	commandName[CommandType_UpdateSvnProjectConfig] = "svn工程"
-	commandName[CommandType_UpdateCdnConfig] = "cdn"
+	commandName[CommandType_ProjectConfig] = "项目"
+	commandName[CommandType_SvnProjectConfig] = "svn工程"
+	commandName[CommandType_CdnConfig] = "cdn"
+	commandName[CommandType_CheckOutSvnProject] = "检出svn"
 	commandName[CommandType_SvnMerge] = "分支合并"
 	commandName[CommandType_AutoBuildClient] = "客户端构建"
 	commandName[CommandType_PrintHotfixResList] = "输出热更资源"
 	commandName[CommandType_UploadHotfixRes2Test] = "上传热更资源到测试"
 	commandName[CommandType_UploadHotfixRes2Release] = "上传热更资源到正式"
 	commandName[CommandType_BackupHotfixRes] = "备份热更资源"
-	commandName[CommandType_UpdateSvrProgressConfig] = "游戏服务"
-	commandName[CommandType_UpdateSvrMachineConfig] = "服务器主机"
+	commandName[CommandType_SvrProgressConfig] = "游戏服务"
+	commandName[CommandType_SvrMachineConfig] = "服务器主机"
 	commandName[CommandType_UpdateAndRestartSvr] = "更新服务器"
 	commandName[CommandType_ListSvnLog] = "输出svn日志"
-	commandName[CommandType_UpdateUserGroup] = "用户组"
-	commandName[CommandType_UpdateUser] = "用户"
+	commandName[CommandType_UserGroup] = "用户组"
+	commandName[CommandType_User] = "用户"
 	commandName[CommandType_UpdateTable] = "更新表格"
 	commandName[CommandType_CloseRobot] = "关闭自动构建机器人"
 
 	//初始化指令帮助提示
-	commandHelpTips[CommandType_UpdateProjectConfig] = GetProjectConfigHelp()
-	commandHelpTips[CommandType_UpdateSvnProjectConfig] = GetSvnProjectConfigHelp()
-	commandHelpTips[CommandType_UpdateCdnConfig] = GetCdnConfigHelp()
+	commandHelpTips[CommandType_ProjectConfig] = GetProjectConfigHelp()
+	commandHelpTips[CommandType_SvnProjectConfig] = GetSvnProjectConfigHelp()
+	commandHelpTips[CommandType_CdnConfig] = GetCdnConfigHelp()
 	commandHelpTips[CommandType_SvnMerge] = GetMergeCommandHelp()
 	commandHelpTips[CommandType_AutoBuildClient] = GetClientBuildCommandHelp()
-	commonHelpTips := "例：【%s：%s】，参数（%s）是指令【" + commandName[CommandType_UpdateSvnProjectConfig] + "】的ProjectName"
+	commonHelpTips := "例：【%s：%s】，参数（%s）是指令【" + commandName[CommandType_SvnProjectConfig] + "】的ProjectName"
+	commandHelpTips[CommandType_CheckOutSvnProject] = fmt.Sprintf(commonHelpTips, commandName[CommandType_CheckOutSvnProject], "外网测试包", "外网测试包")
 	commandHelpTips[CommandType_PrintHotfixResList] = fmt.Sprintf(commonHelpTips, commandName[CommandType_PrintHotfixResList], "外网测试包", "外网测试包")
 	commandHelpTips[CommandType_UploadHotfixRes2Test] = fmt.Sprintf(commonHelpTips, commandName[CommandType_UploadHotfixRes2Test], "外网测试包", "外网测试包")
 	commandHelpTips[CommandType_UploadHotfixRes2Release] = fmt.Sprintf(commonHelpTips, commandName[CommandType_UploadHotfixRes2Release], "外网测试包", "外网测试包")
 	commandHelpTips[CommandType_BackupHotfixRes] = fmt.Sprintf("例：【%s：%s,%s】，参数1（%s）是指令【%s】的ProjectName\n参数2（%s）是备份日志",
-		commandName[CommandType_BackupHotfixRes], "外网测试包", "热更日志", "外网测试包", commandName[CommandType_UpdateSvnProjectConfig], "热更日志")
-	commandHelpTips[CommandType_UpdateSvrProgressConfig] = GetSvrProgressConfigHelp()
-	commandHelpTips[CommandType_UpdateSvrMachineConfig] = GetSvrMachineConfigHelp()
+		commandName[CommandType_BackupHotfixRes], "外网测试包", "热更日志", "外网测试包", commandName[CommandType_SvnProjectConfig], "热更日志")
+	commandHelpTips[CommandType_SvrProgressConfig] = GetSvrProgressConfigHelp()
+	commandHelpTips[CommandType_SvrMachineConfig] = GetSvrMachineConfigHelp()
 	commandHelpTips[CommandType_UpdateAndRestartSvr] = fmt.Sprintf("例：【%s：外网测试服,后台】,其中外网测试服是指令【%s】配置数据的svn工程名，后台是指令【%s】配置数据的游戏服务进程名",
-		commandName[CommandType_UpdateAndRestartSvr], commandName[CommandType_UpdateSvnProjectConfig], commandName[CommandType_UpdateSvrProgressConfig])
+		commandName[CommandType_UpdateAndRestartSvr], commandName[CommandType_SvnProjectConfig], commandName[CommandType_SvrProgressConfig])
 	commandHelpTips[CommandType_ListSvnLog] = fmt.Sprintf(commonHelpTips, commandName[CommandType_ListSvnLog], "开发分支", "开发分支")
-	commandHelpTips[CommandType_UpdateUser] = GetUserConfigHelp()
-	commandHelpTips[CommandType_UpdateUserGroup] = GetUserGroupConfigHelp()
+	commandHelpTips[CommandType_User] = GetUserConfigHelp()
+	commandHelpTips[CommandType_UserGroup] = GetUserGroupConfigHelp()
 	commandHelpTips[CommandType_UpdateTable] = fmt.Sprintf(commonHelpTips, commandName[CommandType_UpdateTable], "研发表格", "研发表格")
 	commandHelpTips[CommandType_CloseRobot] = ""
 }
@@ -228,7 +231,8 @@ func JudgeIsNeedProjectPermission(commandType int) bool {
 	if commandType == CommandType_SvnMerge || commandType == CommandType_UpdateTable ||
 		commandType == CommandType_AutoBuildClient || commandType == CommandType_PrintHotfixResList ||
 		commandType == CommandType_UploadHotfixRes2Test || commandType == CommandType_UploadHotfixRes2Release ||
-		commandType == CommandType_BackupHotfixRes || commandType == CommandType_UpdateAndRestartSvr {
+		commandType == CommandType_BackupHotfixRes || commandType == CommandType_UpdateAndRestartSvr ||
+		commandType == CommandType_CheckOutSvnProject{
 		return true
 	}
 	return false
@@ -243,10 +247,10 @@ func AnalysisParam(requestParam string, commandType int) (err error, params []st
 
 	//参数不足
 	if requestParam == "" {
-		if commandType == CommandType_UpdateProjectConfig || commandType == CommandType_UpdateSvnProjectConfig ||
-			commandType == CommandType_UpdateCdnConfig || commandType == CommandType_UpdateSvrProgressConfig ||
-			commandType == CommandType_UpdateSvrMachineConfig || commandType == CommandType_UpdateAndRestartSvr ||
-			commandType == CommandType_UpdateUser || commandType == CommandType_UpdateUserGroup {
+		if commandType == CommandType_ProjectConfig || commandType == CommandType_SvnProjectConfig ||
+			commandType == CommandType_CdnConfig || commandType == CommandType_SvrProgressConfig ||
+			commandType == CommandType_SvrMachineConfig || commandType == CommandType_UpdateAndRestartSvr ||
+			commandType == CommandType_User || commandType == CommandType_UserGroup {
 			//可以不用参数
 			return nil, nil
 		}
@@ -283,10 +287,13 @@ func GetShellParams(commandType int, commandParams []string, projectName, webHoo
 	}
 	svnProjectName1 := commandParams[0]
 	if svnProjectName1 == "" {
-		return errors.New(fmt.Sprintf("需要项目名称参数，，用【%s】空参数会列出所有项目配置", GetCommandNameByType(CommandType_UpdateSvnProjectConfig))), ""
+		return errors.New(fmt.Sprintf("需要项目名称参数，，用【%s】空参数会列出所有项目配置", GetCommandNameByType(CommandType_SvnProjectConfig))), ""
 	}
 
-	projectPath := GetSvnProjectPath(projectName, svnProjectName1)
+	err,projectPath,svnUrl,_ := GetSvnProjectInfo(projectName, svnProjectName1)
+	if nil != err{
+		return err,""
+	}
 
 	switch commandType {
 	case CommandType_SvnMerge:
@@ -295,13 +302,9 @@ func GetShellParams(commandType int, commandParams []string, projectName, webHoo
 			if svnProjectName1 == "" || svnProjectName2 == "" {
 				return errors.New(fmt.Sprintf("合并分支名称不合法（请输入两个正确分支信息如开发分支合并到策划分支），branch1：%s,branch2:%s", svnProjectName1, svnProjectName2)), ""
 			}
-			svnUrl := GetSvnPath(projectName, svnProjectName1)
-			if "" == svnUrl {
-				return errors.New("合并工程svn地址为空：" + svnProjectName1), ""
-			}
-			mergeTargetProjectPath := GetSvnProjectPath(projectName, svnProjectName2)
-			if "" == mergeTargetProjectPath {
-				return errors.New("合并目标工程地址为空：" + svnProjectName2), ""
+			err,mergeTargetProjectPath,_,_ := GetSvnProjectInfo(projectName, svnProjectName2)
+			if nil != err {
+				return err, ""
 			}
 			conflictAutoWayWhenMerge := "tf"
 			if len(commandParams) > 2 {
@@ -326,7 +329,7 @@ func GetShellParams(commandType int, commandParams []string, projectName, webHoo
 	case CommandType_AutoBuildClient:
 		{
 			if svnProjectName1 == "" {
-				return errors.New(fmt.Sprintf("需要项目名称参数，，用【%s】空参数会列出所有项目配置", GetCommandNameByType(CommandType_UpdateSvnProjectConfig))), ""
+				return errors.New(fmt.Sprintf("需要项目名称参数，，用【%s】空参数会列出所有项目配置", GetCommandNameByType(CommandType_SvnProjectConfig))), ""
 			}
 			err, enginePath := GetProjectClientEnginePath(projectName)
 			if nil != err {
@@ -335,7 +338,7 @@ func GetShellParams(commandType int, commandParams []string, projectName, webHoo
 
 			//获取构建方法
 			if len(commandParams) < 2 {
-				return errors.New(fmt.Sprintf("获取构建方法失败，，用【%s】空参数查看项目配置是否存在该方法", GetCommandNameByType(CommandType_UpdateSvnProjectConfig))), ""
+				return errors.New(fmt.Sprintf("获取构建方法失败，，用【%s】空参数查看项目配置是否存在该方法", GetCommandNameByType(CommandType_SvnProjectConfig))), ""
 			}
 			err, buildMethod := GetBuildMethod(projectName, svnProjectName1, commandParams[1])
 			if nil != err {

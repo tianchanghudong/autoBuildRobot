@@ -201,15 +201,20 @@ func PathExists(path string)(bool,error){
 }
 
 //创建文件夹
-func CreateDateDir(_path string){
+func CreateDir(_path string) error{
 	if _, err := os.Stat(_path); os.IsNotExist(err) {
 		// 必须分成两步
 		// 先创建文件夹
-		os.Mkdir(_path, 0777)
+		mkErr := os.MkdirAll(_path, os.ModePerm)
+		if nil != mkErr{
+			return mkErr
+		}
+
 		// 再修改权限
-		os.Chmod(_path, 0777)
+		return os.Chmod(_path, os.ModePerm)
+	}else{
+		return err
 	}
-	return
 }
 
 //计算文件md5值

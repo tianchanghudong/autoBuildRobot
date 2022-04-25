@@ -120,7 +120,7 @@ func GetSvrProgressConfigHelp() string {
 		ZipFileList:           "要压缩上传的所有文件名，多个用竖线分割，如果目标平台多个，那就编译出的可执行文件都配上吧，如果没有构建就不会打包进去",
 	}
 	return fmt.Sprintf("一套完整服务器代码可能包括游戏服、跨服、后台等，游戏服务进程配置就是在更新服务器时告诉构建其服务对应哪个文件夹代码，哪些文件要打包\n配置例子：\n【%s：%s】 \n如多个配置用分号分割",
-		commandName[CommandType_UpdateSvrProgressConfig], tool.MarshalJson(tpl))
+		commandName[CommandType_SvrProgressConfig], tool.MarshalJson(tpl))
 }
 
 //获取服务进程配置数据

@@ -3,6 +3,7 @@ package models
 import (
 	"autobuildrobot/log"
 	"autobuildrobot/tool"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -105,19 +106,19 @@ func GetSvnProjectConfigHelp() string {
 		SvnExternalKeyword: "工程包含的外链关键字，用来构建的时候判断外链有没有修改，目前只简单考虑表格外链情况",
 	}
 	return fmt.Sprintf("svn工程配置是整个构建的最核心配置，它告诉基本所有操作需要的工程位置和svn地址\n配置例子：\n【%s：%s】 \n其中路径不能有反斜杠,用/，如多个配置用分号分割",
-		commandName[CommandType_UpdateSvnProjectConfig], tool.MarshalJson(tpl))
+		commandName[CommandType_SvnProjectConfig], tool.MarshalJson(tpl))
 }
 
 //获取合并指令帮助
 func GetMergeCommandHelp() string {
 	return fmt.Sprintf("例：【%s：开发分支合并到策划分支】，开发分支和策划分支都是指令【%s】的ProjectName\n具体分支关系参见https://www.kdocs.cn/l/spWN1ZyWsEPr?f=131",
-		commandName[CommandType_SvnMerge], commandName[CommandType_UpdateSvnProjectConfig])
+		commandName[CommandType_SvnMerge], commandName[CommandType_SvnProjectConfig])
 }
 
 //获取客户端构建帮助
 func GetClientBuildCommandHelp() string {
 	return fmt.Sprintf("例：【%s：外网测试包,BuildLuaCode】或【%s：外网测试包,0】\n参数1和2是指令【%s】里的ProjectName和AutoBuildMethodList方法数组中某个构建方法或其索引\n参数3选填，目前只有固定dev表示是development build，不填则表示默认的release build",
-		commandName[CommandType_AutoBuildClient], commandName[CommandType_AutoBuildClient], commandName[CommandType_UpdateSvnProjectConfig])
+		commandName[CommandType_AutoBuildClient], commandName[CommandType_AutoBuildClient], commandName[CommandType_SvnProjectConfig])
 }
 
 //判断工程是否存在
@@ -129,39 +130,14 @@ func JudgeSvnProjectIsExist(projectName, svnProjectName string) bool {
 }
 
 //获取svn地址
-func GetSvnPath(projectName, svnProjectName string) string {
+func GetSvnProjectInfo(projectName, svnProjectName string) (err error,projectPath,svnUrl,svnExternalKeyword string) {
 	svnProjectDataLock.Lock()
 	defer svnProjectDataLock.Unlock()
 	svnProjectModel := getSvnProjectData(projectName, svnProjectName)
 	if nil == svnProjectModel {
-		log.Error("获取工程svn地址，不存在svn工程，请添加")
-		return ""
+		return errors.New(fmt.Sprintf("不存在svn%s工程，请添加",svnProjectName)),"","",""
 	}
-	return svnProjectModel.SvnUrl
-}
-
-//获取svn外链关键字
-func GetSvnExternalKeyword(projectName, svnProjectName string) string {
-	svnProjectDataLock.Lock()
-	defer svnProjectDataLock.Unlock()
-	svnProjectModel := getSvnProjectData(projectName, svnProjectName)
-	if nil == svnProjectModel {
-		log.Error("获取工程svn地址，不存在svn工程，请添加")
-		return ""
-	}
-	return svnProjectModel.SvnExternalKeyword
-}
-
-//获取svn工程地址
-func GetSvnProjectPath(projectName, svnProjectName string) string {
-	svnProjectDataLock.Lock()
-	defer svnProjectDataLock.Unlock()
-	svnProjectModel := getSvnProjectData(projectName, svnProjectName)
-	if nil == svnProjectModel {
-		log.Error("获取工程地址，不存在svn工程数据，请添加")
-		return ""
-	}
-	return svnProjectModel.ProjectPath
+	return nil,svnProjectModel.ProjectPath,svnProjectModel.SvnUrl,svnProjectModel.SvnExternalKeyword
 }
 
 //获取上次获取svn日志时间

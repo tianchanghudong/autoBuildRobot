@@ -94,7 +94,7 @@ func GetProjectConfigHelp() (result string) {
 	project.AutoBuildClientMethodList = make([]string, 0)
 	project.UnopenCommandTypeList = make([]int, 0)
 	project.TempBanNormalUserCommands = make([]string, 0)
-	return fmt.Sprintf("例：【%s：%s】\n其中，UnopenCommandTypeList是不开放的指令索引数组,TempBanNormalUserCommands是临时要禁用的指令名称或者项目名称\nAutoBuildMethodList对应客户端AutoBuild.cs定义的构建方法数组\n如多个配置用分号分割", commandName[CommandType_UpdateProjectConfig], tool.MarshalJson(project))
+	return fmt.Sprintf("例：【%s：%s】\n其中，UnopenCommandTypeList是不开放的指令索引数组,TempBanNormalUserCommands是临时要禁用的指令名称或者项目名称\nAutoBuildMethodList对应客户端AutoBuild.cs定义的构建方法数组\n如多个配置用分号分割", commandName[CommandType_ProjectConfig], tool.MarshalJson(project))
 }
 
 //获取项目管理员
