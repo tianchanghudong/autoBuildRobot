@@ -374,18 +374,23 @@ func checkOutSvnProject(command models.AutoBuildCommand)(string, error){
 	lastTime := time.Now().Unix()
 	svnCheckOutCommand := fmt.Sprintf("cd %s;svn co %s .", projectPath,svnUrl)
 	tool.ExecCommand(commandName, svnCheckOutCommand, func(resultLine string) {
+		timeNow := time.Now().Unix()
+		if (timeNow-lastTime) < maxIntervalTimeBetween2Msg {
+			//过滤掉一些消息，要不消息太恐怖了
+			return
+		}
+
 		//每隔80行发送一条构建消息
 		count++
 		temp += resultLine
-		timeNow := time.Now().Unix()
-		if count >= lineInOneMes || (timeNow-lastTime) > maxIntervalTimeBetween2Msg {
+		if count >= lineInOneMes {
 			command.ResultFunc(temp, "")
 			temp = ""
 			count = 0
 			lastTime = timeNow
 		}
 	})
-	return temp + "\n检出完毕！！",nil
+	return temp + "\n检出完毕（避免消息爆炸，有过滤一些svn检出日志）！！",nil
 }
 
 //执行shell指令

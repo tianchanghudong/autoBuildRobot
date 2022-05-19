@@ -43,14 +43,13 @@ def package(projectPath,svrProgressProjDirName,platform,zipFileNameWithoutExt,zi
         for file in _zipFileList:
             if os.path.exists(file):            
                 f.write(file)
-            #后面分支貌似要合并，但是貌似现在这样更可读
+            #后面条件分支貌似要合并，但是貌似现在这样更可读
             elif file.find(svrProgressProjDirName) >= 0: 
                 #根据平台不同，编译的可执行文件后缀也不一样
-                if platform == "windows":
-                    if file.find("exe") >= 0:
-                        print("windows，不存在文件：{0}，请检查".format(file))
-                        return False 
-                else:
+                if platform == "windows" and file.find("exe") >= 0:
+                    print("windows，不存在文件：{0}，请检查".format(file))
+                    return False 
+                elif platform != "windows" and file.find("exe") < 0:
                     print("other platform,不存在文件：{0}，请检查".format(file))
                     return False 
             elif file != "":
@@ -83,7 +82,7 @@ def update_svr(upload_ip,port,account,psd,platform,svrRootPath, zipFileName):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(upload_ip,port,account,psd,timeout=10)
-    sshCommand = 'cd {0}/dus;chmod +x mvandrestart_.sh;./mvandrestart_.sh {0} {1}'.format(svrRootPath,zipFileName)
+    sshCommand = 'cd {0};chmod +x mvandrestart_.sh;./mvandrestart_.sh {0} {1}'.format(svrRootPath,zipFileName)
     if platform == "windows":
         #windows烦死了，，macssh到window切换盘符以及执行多条命令烦死了，干脆直接把脚本放到windows的用户下面，直接执行脚本
         sshCommand = 'mvandrestart_.sh {0} {1}'.format(svrRootPath,zipFileName)
@@ -119,8 +118,7 @@ if __name__ == '__main__':
         exit(2)
     
     #上传
-    uploadPath = os.path.join(svrRootPath,zipFileNameWithoutExt)
-    scp_upload(upload_ip,port,account,psd,zipFileNameWithoutExt + ".zip",uploadPath)
+    scp_upload(upload_ip,port,account,psd,zipFileNameWithoutExt + ".zip",svrRootPath)
     
     #更新    
     update_svr(upload_ip,port,account,psd,platform,svrRootPath, zipFileNameWithoutExt)
