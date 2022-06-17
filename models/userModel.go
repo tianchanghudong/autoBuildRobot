@@ -239,7 +239,7 @@ func GetUserConfigHelp() string {
 	userModel.GroupName = "所在用户组"
 	userModel.PhoneNum = "电话号码"
 	userModel.IsProjectUser = false
-	return fmt.Sprintf("例：\n【%s：%s】\n其中：IsProjectUser如果true则表示该用户属于项目，否则默认的false属于公司用户\n多个配置用分号分割",
+	return fmt.Sprintf("配置用户信息（如名称 所属用户组等）\n例：\n【%s：%s】\n其中：IsProjectUser如果true则表示该用户属于项目，否则默认的false属于公司用户\n多个配置用分号分割",
 		commandName[CommandType_User], tool.MarshalJson(userModel))
 }
 

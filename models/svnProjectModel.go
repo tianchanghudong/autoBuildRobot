@@ -111,14 +111,25 @@ func GetSvnProjectConfigHelp() string {
 
 //获取合并指令帮助
 func GetMergeCommandHelp() string {
-	return fmt.Sprintf("例：【%s：开发分支合并到策划分支】，开发分支和策划分支都是指令【%s】的ProjectName\n具体分支关系参见https://www.kdocs.cn/l/spWN1ZyWsEPr?f=131",
+	return fmt.Sprintf(`目前前后端都定为5大分支:
+1、临时开发分支（跨版本迭代），
+2、开发分支（常规迭代开发）
+3、策划分支（开发完成一个功能直接合并给策划验收）
+4、测试分支（一个迭代所有功能策划验收完成后由策划分支合并到测试分支，测试分支会比开发晚一个迭代）
+5、发版分支（测试验收完毕合并到发版分支准备对外）
+更详细流程看https://www.kdocs.cn/l/spWN1ZyWsEPr?f=131
+例：【%s：开发分支合并到策划分支】，开发分支和策划分支都是指令【%s】的ProjectName\n`,
 		commandName[CommandType_SvnMerge], commandName[CommandType_SvnProjectConfig])
 }
 
 //获取客户端构建帮助
 func GetClientBuildCommandHelp() string {
-	return fmt.Sprintf("例：【%s：外网测试包,BuildLuaCode】或【%s：外网测试包,0】\n参数1和2是指令【%s】里的ProjectName和AutoBuildMethodList方法数组中某个构建方法或其索引\n参数3选填，目前只有固定dev表示是development build，不填则表示默认的release build",
-		commandName[CommandType_AutoBuildClient], commandName[CommandType_AutoBuildClient], commandName[CommandType_SvnProjectConfig])
+	return fmt.Sprintf(`根据参数，执行打lua资源、打整个资源，出白包、以及各个渠道包
+例：【%s：外网测试包,BuildLuaCode】或【%s：外网测试包,0】
+参数1是指令【%s】配置的ProjectName
+参数2是指令【%s】配置的AutoBuildMethodList方法数组中某个构建方法或其索引
+参数3选填，目前只有固定dev表示是development build，不填则表示默认的release build`,
+		commandName[CommandType_AutoBuildClient], commandName[CommandType_AutoBuildClient], commandName[CommandType_SvnProjectConfig],commandName[CommandType_ProjectConfig])
 }
 
 //判断工程是否存在

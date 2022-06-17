@@ -158,7 +158,7 @@ func GetCdnConfigHelp() string {
 		BackupPath: "热更备份地址",
 		ResPaths:   []string{"第一个默认为测试地址，地址都为Bucket下得相对路径，且不能有反斜杠用/", "路径2开始为正式地址1，多个地址后面追加"},
 	}
-	return fmt.Sprintf("cdn配置理解为热更需要的工程配置的补充字段吧\n例：\n【%s：%s】 \n如果多个配置用分号分割", commandName[CommandType_CdnConfig], tool.MarshalJson(tpl))
+	return fmt.Sprintf("cdn配置理解为热更需要的svn工程配置的补充字段吧\n例：\n【%s：%s】 \n如果多个配置用分号分割", commandName[CommandType_CdnConfig], tool.MarshalJson(tpl))
 }
 
 //获取CDN配置数据

@@ -92,21 +92,22 @@ func init() {
 	commandHelpTips[CommandType_CdnConfig] = GetCdnConfigHelp()
 	commandHelpTips[CommandType_SvnMerge] = GetMergeCommandHelp()
 	commandHelpTips[CommandType_AutoBuildClient] = GetClientBuildCommandHelp()
-	commonHelpTips := "例：【%s：%s】，参数（%s）是指令【" + commandName[CommandType_SvnProjectConfig] + "】的ProjectName"
-	commandHelpTips[CommandType_CheckOutSvnProject] = fmt.Sprintf(commonHelpTips, commandName[CommandType_CheckOutSvnProject], "外网测试包", "外网测试包")
-	commandHelpTips[CommandType_PrintHotfixResList] = fmt.Sprintf(commonHelpTips, commandName[CommandType_PrintHotfixResList], "外网测试包", "外网测试包")
-	commandHelpTips[CommandType_UploadHotfixRes2Test] = fmt.Sprintf(commonHelpTips, commandName[CommandType_UploadHotfixRes2Test], "外网测试包", "外网测试包")
-	commandHelpTips[CommandType_UploadHotfixRes2Release] = fmt.Sprintf(commonHelpTips, commandName[CommandType_UploadHotfixRes2Release], "外网测试包", "外网测试包")
-	commandHelpTips[CommandType_BackupHotfixRes] = fmt.Sprintf("例：【%s：%s,%s】，参数1（%s）是指令【%s】的ProjectName\n参数2（%s）是备份日志",
+	commonHelpTips := "%s\n例：【%s：%s】，参数（%s）是指令【" + commandName[CommandType_SvnProjectConfig] + "】的ProjectName"
+	commandHelpTips[CommandType_CheckOutSvnProject] = fmt.Sprintf(commonHelpTips,"根据svn工程配置，存在则输出svn信息，不存在则检出svn工程到配置地址", commandName[CommandType_CheckOutSvnProject], "外网测试包", "外网测试包")
+	commandHelpTips[CommandType_PrintHotfixResList] = fmt.Sprintf(commonHelpTips,"根据参数，目标工程本地文件列表跟配置的cdn服务器比对，列出差异文件，用于看热更大小以及判断是否都是我们要热更的资源",  commandName[CommandType_PrintHotfixResList], "外网测试包", "外网测试包")
+	commandHelpTips[CommandType_UploadHotfixRes2Test] = fmt.Sprintf(commonHelpTips,"将要更新的资源上传到cdn测试地址，本地加白名单用正式包验证",  commandName[CommandType_UploadHotfixRes2Test], "外网测试包", "外网测试包")
+	commandHelpTips[CommandType_UploadHotfixRes2Release] = fmt.Sprintf(commonHelpTips,"测试地址资源验证没问题后，定好维护时间，上传到正式地址",  commandName[CommandType_UploadHotfixRes2Release], "外网测试包", "外网测试包")
+	commandHelpTips[CommandType_BackupHotfixRes] = fmt.Sprintf("本地维护完毕，备份下整个资源，用于下次热更如果出现意外需要回滚的资源备份\n例：【%s：%s,%s】，参数1（%s）是指令【%s】的ProjectName\n参数2（%s）是备份日志",
 		commandName[CommandType_BackupHotfixRes], "外网测试包", "热更日志", "外网测试包", commandName[CommandType_SvnProjectConfig], "热更日志")
 	commandHelpTips[CommandType_SvrProgressConfig] = GetSvrProgressConfigHelp()
 	commandHelpTips[CommandType_SvrMachineConfig] = GetSvrMachineConfigHelp()
-	commandHelpTips[CommandType_UpdateAndRestartSvr] = fmt.Sprintf("例：【%s：外网测试服,后台】,其中外网测试服是指令【%s】配置数据的svn工程名，后台是指令【%s】配置数据的游戏服务进程名",
+	commandHelpTips[CommandType_UpdateAndRestartSvr] = fmt.Sprintf("如字面意思，流程是更新、编译、压缩、上传、备份、解压并重启服务器\n例：【%s：外网测试服,后台】,其中外网测试服是指令【%s】配置数据的svn工程名，后台是指令【%s】配置数据的游戏服务进程名",
 		commandName[CommandType_UpdateAndRestartSvr], commandName[CommandType_SvnProjectConfig], commandName[CommandType_SvrProgressConfig])
-	commandHelpTips[CommandType_ListSvnLog] = fmt.Sprintf(commonHelpTips, commandName[CommandType_ListSvnLog], "开发分支", "开发分支")
+	commandHelpTips[CommandType_ListSvnLog] = fmt.Sprintf(commonHelpTips,"根据分支名称，输出该分支下的日志，格式 日志序列、日志内容（系统 by 修改人）",  commandName[CommandType_ListSvnLog], "开发分支", "开发分支")
 	commandHelpTips[CommandType_User] = GetUserConfigHelp()
 	commandHelpTips[CommandType_UserGroup] = GetUserGroupConfigHelp()
-	commandHelpTips[CommandType_UpdateTable] = fmt.Sprintf(commonHelpTips, commandName[CommandType_UpdateTable], "研发表格", "研发表格")
+	commandHelpTips[CommandType_UpdateTable] = fmt.Sprintf(commonHelpTips, "将表格分别输出客户端和服务器需要的lua和gob文件，前后端分别用svn外链引用，其中临时开发分支引用临时表格，开发和策划分支引用研发表格，测试分支引用测试表格，发版分支引用正式表格",
+		commandName[CommandType_UpdateTable], "研发表格", "研发表格")
 	commandHelpTips[CommandType_CloseRobot] = ""
 }
 

@@ -130,22 +130,22 @@ func RecvCommand(projectName, executor, _commandMsg, webHook string, sendMsgFunc
 			return
 		}
 
-		//检测外链是否异常
-		err := checkSVNExternals(autoBuildCommand)
-		if err != nil {
-			phoneNum += "," + models.GetProjectManagerPhone(projectName)
-			sendMsgFunc(fmt.Sprintf("builder:%s\ninfo:%s", executor, err.Error()), phoneNum)
-			return
-		}
-
 		//执行指令
 		commandResult := ""
 		if models.JudgeIsHelpParam(autoBuildCommand.CommandParams) {
 			//如果参数是帮助，则返回指令帮助信息
 			commandResult = autoBuildCommand.HelpTips
 		} else {
-			//返回指令执行结果
+			//检测外链是否异常
 			var err error
+			err = checkSVNExternals(autoBuildCommand)
+			if err != nil {
+				phoneNum += "," + models.GetProjectManagerPhone(projectName)
+				sendMsgFunc(fmt.Sprintf("builder:%s\ninfo:%s", executor, err.Error()), phoneNum)
+				return
+			}
+
+			//返回指令执行结果
 			commandResult, err = autoBuildCommand.Func(autoBuildCommand)
 			if err != nil {
 				isError = true
@@ -154,7 +154,7 @@ func RecvCommand(projectName, executor, _commandMsg, webHook string, sendMsgFunc
 		}
 
 		//发送执行结果
-		sendMsgFunc(fmt.Sprintf("builder:%s\ncommand:%s\ninfo:%s", executor, autoBuildCommand.Name, result+commandResult), phoneNum)
+		sendMsgFunc(fmt.Sprintf("builder:%s\ncommand:%s\ninfo:%s", executor, commandMsg, result+commandResult), phoneNum)
 
 		//检测是否有svn冲突（如果是合并，且有冲突则通知管理员）
 		if checkSVNConflictAndNotifyManager(autoBuildCommand) {

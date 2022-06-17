@@ -1,6 +1,7 @@
 package cdn
 
 import (
+	"autobuildrobot/log"
 	"errors"
 	cdn20180510 "github.com/alibabacloud-go/cdn-20180510/client"
 	openapi "github.com/alibabacloud-go/darabonba-openapi/client"
@@ -21,11 +22,13 @@ type ALiYun struct {
 func NewALiYun(endpointOfBucket, bucketName, accessKeyID, accessKeySecret string) (error, *ALiYun) {
 	client, err := oss.New(endpointOfBucket, accessKeyID, accessKeySecret)
 	if err != nil {
+		log.Error(err)
 		return err, nil
 	}
 	// Get Bucket
 	bucket, err := client.Bucket(bucketName)
 	if err != nil {
+		log.Error(err)
 		return err, nil
 	}
 	aly := new(ALiYun)

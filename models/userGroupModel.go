@@ -126,7 +126,7 @@ func GetUserGroupConfigHelp() (result string) {
 	group.ProjectPermissions = make([]string, 0)
 	group.ProjectPermissions = append(group.ProjectPermissions, "拥有权限的项目名1")
 	group.ProjectPermissions = append(group.ProjectPermissions, "拥有权限的项目名2")
-	return fmt.Sprintf("例：\n【%s：%s】\nCommandPermissions为拥有权限的指令索引数组\n如多个配置用分号分割",
+	return fmt.Sprintf("配置用户组权限\n例：\n【%s：%s】\nCommandPermissions为拥有权限的指令索引数组\n如多个配置用分号分割",
 		commandName[CommandType_UserGroup], tool.MarshalJson(group))
 }
 
