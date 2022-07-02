@@ -55,6 +55,8 @@ func init() {
 	models.AddCommand(models.CommandType_SvrProgressConfig, updateSvrProgressConfigCommand)
 	models.AddCommand(models.CommandType_SvrMachineConfig, updateSvrMachineConfigCommand)
 	models.AddCommand(models.CommandType_UpdateAndRestartSvr, shellCommand)
+	models.AddCommand(models.CommandType_BuildPbMsg, shellCommand)
+	models.AddCommand(models.CommandType_CloseSvr, shellCommand)
 	models.AddCommand(models.CommandType_UpdateTable, shellCommand)
 
 	models.AddCommand(models.CommandType_UserGroup, updateUserGroupCommand)
@@ -446,8 +448,8 @@ func shellCommand(command models.AutoBuildCommand) (string, error) {
 		}
 	})
 
-	//如果是导表，则要提交或者还原
-	if command.CommandType == models.CommandType_UpdateTable {
+	//如果是导表或者打消息码，则要提交或者还原
+	if command.CommandType == models.CommandType_UpdateTable || command.CommandType == models.CommandType_BuildPbMsg{
 		_,projectPath,_,_ := models.GetSvnProjectInfo(command.ProjectName, params[0])
 		if isError {
 			//还原
@@ -455,7 +457,7 @@ func shellCommand(command models.AutoBuildCommand) (string, error) {
 			tool.Exec_shell(commandName, revertCommand)
 		} else {
 			//提交
-			commitCommand := fmt.Sprintf("cd %s;chmod +x svnCommit.sh;./svnCommit.sh %s %s", shellPath, projectPath, "latest table!")
+			commitCommand := fmt.Sprintf("cd %s;chmod +x svnCommit.sh;./svnCommit.sh %s %s", shellPath, projectPath, "latest!!!")
 			_result, _ := tool.Exec_shell(commandName, commitCommand)
 			temp += "\n" + _result
 		}

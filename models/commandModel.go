@@ -12,26 +12,28 @@ import (
 
 //指令类型
 const (
-	CommandType_Help                    = 0  //帮助
-	CommandType_ProjectConfig           = 1  //项目
-	CommandType_SvnProjectConfig        = 2  //svn工程
-	CommandType_CdnConfig               = 3  //cdn
-	CommandType_CheckOutSvnProject      = 4  //检出svn工程
-	CommandType_SvnMerge                = 5  //分支合并
-	CommandType_UpdateTable             = 6  //更新表格
-	CommandType_AutoBuildClient         = 7  //客户端自动构建
-	CommandType_PrintHotfixResList      = 8  //输出热更资源列表
-	CommandType_UploadHotfixRes2Test    = 9  //上传测试热更资源
-	CommandType_UploadHotfixRes2Release = 10 //上传正式热更资源
-	CommandType_BackupHotfixRes         = 11 //备份热更资源
-	CommandType_SvrProgressConfig       = 12 //游戏服务进程
-	CommandType_SvrMachineConfig        = 13 //游戏服主机
-	CommandType_UpdateAndRestartSvr     = 14 //更新并重启服务器
-	CommandType_ListSvnLog              = 15 //列出svn日志
-	CommandType_UserGroup               = 16 //用户组
-	CommandType_User                    = 17 //用户
-	CommandType_CloseRobot              = 18 //关闭机器人
-	CommandType_Max                     = 19
+	CommandType_Help                    = iota //帮助
+	CommandType_ProjectConfig                  //项目
+	CommandType_SvnProjectConfig               //svn工程
+	CommandType_CdnConfig                      //cdn
+	CommandType_CheckOutSvnProject             //检出svn工程
+	CommandType_SvnMerge                       //分支合并
+	CommandType_UpdateTable                    //更新表格
+	CommandType_AutoBuildClient                //客户端自动构建
+	CommandType_PrintHotfixResList             //输出热更资源列表
+	CommandType_UploadHotfixRes2Test           //上传测试热更资源
+	CommandType_UploadHotfixRes2Release        //上传正式热更资源
+	CommandType_BackupHotfixRes                //备份热更资源
+	CommandType_SvrProgressConfig              //游戏服务进程
+	CommandType_SvrMachineConfig               //游戏服主机
+	CommandType_UpdateAndRestartSvr            //更新并重启服务器
+	CommandType_CloseSvr                       //关闭服务器
+	CommandType_BuildPbMsg                     //构建消息码
+	CommandType_ListSvnLog                     //列出svn日志
+	CommandType_UserGroup                      //用户组
+	CommandType_User                           //用户
+	CommandType_CloseRobot                     //关闭机器人
+	CommandType_Max
 )
 
 //自动构建指令
@@ -64,6 +66,8 @@ func init() {
 	command[CommandType_UpdateTable] = "ReadExcel.sh"
 	command[CommandType_UpdateAndRestartSvr] = "auto_update_server.py"
 	command[CommandType_CloseRobot] = "stopAutoBuildRobot.sh"
+	command[CommandType_BuildPbMsg] = "buildproto.sh"
+	command[CommandType_CloseSvr] = "close_svr.py"
 
 	//初始化指令名字
 	commandName[CommandType_Help] = "帮助"
@@ -80,6 +84,8 @@ func init() {
 	commandName[CommandType_SvrProgressConfig] = "游戏服务"
 	commandName[CommandType_SvrMachineConfig] = "服务器主机"
 	commandName[CommandType_UpdateAndRestartSvr] = "更新服务器"
+	commandName[CommandType_BuildPbMsg] = "构建消息码"
+	commandName[CommandType_CloseSvr] = "关闭服务器"
 	commandName[CommandType_ListSvnLog] = "输出svn日志"
 	commandName[CommandType_UserGroup] = "用户组"
 	commandName[CommandType_User] = "用户"
@@ -93,17 +99,21 @@ func init() {
 	commandHelpTips[CommandType_SvnMerge] = GetMergeCommandHelp()
 	commandHelpTips[CommandType_AutoBuildClient] = GetClientBuildCommandHelp()
 	commonHelpTips := "%s\n例：【%s：%s】，参数（%s）是指令【" + commandName[CommandType_SvnProjectConfig] + "】的ProjectName"
-	commandHelpTips[CommandType_CheckOutSvnProject] = fmt.Sprintf(commonHelpTips,"根据svn工程配置，存在则输出svn信息，不存在则检出svn工程到配置地址", commandName[CommandType_CheckOutSvnProject], "外网测试包", "外网测试包")
-	commandHelpTips[CommandType_PrintHotfixResList] = fmt.Sprintf(commonHelpTips,"根据参数，目标工程本地文件列表跟配置的cdn服务器比对，列出差异文件，用于看热更大小以及判断是否都是我们要热更的资源",  commandName[CommandType_PrintHotfixResList], "外网测试包", "外网测试包")
-	commandHelpTips[CommandType_UploadHotfixRes2Test] = fmt.Sprintf(commonHelpTips,"将要更新的资源上传到cdn测试地址，本地加白名单用正式包验证",  commandName[CommandType_UploadHotfixRes2Test], "外网测试包", "外网测试包")
-	commandHelpTips[CommandType_UploadHotfixRes2Release] = fmt.Sprintf(commonHelpTips,"测试地址资源验证没问题后，定好维护时间，上传到正式地址",  commandName[CommandType_UploadHotfixRes2Release], "外网测试包", "外网测试包")
+	commandHelpTips[CommandType_CheckOutSvnProject] = fmt.Sprintf(commonHelpTips, "根据svn工程配置，存在则输出svn信息，不存在则检出svn工程到配置地址", commandName[CommandType_CheckOutSvnProject], "外网测试包", "外网测试包")
+	commandHelpTips[CommandType_PrintHotfixResList] = fmt.Sprintf(commonHelpTips, "根据参数，目标工程本地文件列表跟配置的cdn服务器比对，列出差异文件，用于看热更大小以及判断是否都是我们要热更的资源", commandName[CommandType_PrintHotfixResList], "外网测试包", "外网测试包")
+	commandHelpTips[CommandType_UploadHotfixRes2Test] = fmt.Sprintf(commonHelpTips, "将要更新的资源上传到cdn测试地址，本地加白名单用正式包验证", commandName[CommandType_UploadHotfixRes2Test], "外网测试包", "外网测试包")
+	commandHelpTips[CommandType_UploadHotfixRes2Release] = fmt.Sprintf(commonHelpTips, "测试地址资源验证没问题后，定好维护时间，上传到正式地址", commandName[CommandType_UploadHotfixRes2Release], "外网测试包", "外网测试包")
 	commandHelpTips[CommandType_BackupHotfixRes] = fmt.Sprintf("本地维护完毕，备份下整个资源，用于下次热更如果出现意外需要回滚的资源备份\n例：【%s：%s,%s】，参数1（%s）是指令【%s】的ProjectName\n参数2（%s）是备份日志",
 		commandName[CommandType_BackupHotfixRes], "外网测试包", "热更日志", "外网测试包", commandName[CommandType_SvnProjectConfig], "热更日志")
 	commandHelpTips[CommandType_SvrProgressConfig] = GetSvrProgressConfigHelp()
 	commandHelpTips[CommandType_SvrMachineConfig] = GetSvrMachineConfigHelp()
 	commandHelpTips[CommandType_UpdateAndRestartSvr] = fmt.Sprintf("如字面意思，流程是更新、编译、压缩、上传、备份、解压并重启服务器\n例：【%s：外网测试服,后台】,其中外网测试服是指令【%s】配置数据的svn工程名，后台是指令【%s】配置数据的游戏服务进程名",
 		commandName[CommandType_UpdateAndRestartSvr], commandName[CommandType_SvnProjectConfig], commandName[CommandType_SvrProgressConfig])
-	commandHelpTips[CommandType_ListSvnLog] = fmt.Sprintf(commonHelpTips,"根据分支名称，输出该分支下的日志，格式 日志序列、日志内容（系统 by 修改人）",  commandName[CommandType_ListSvnLog], "开发分支", "开发分支")
+	commandHelpTips[CommandType_CloseSvr] = fmt.Sprintf("如字面意思，关闭服务器\n例：【%s：内网策划,游戏服】,其中内网策划是指令【%s】配置数据的svn工程名，后台是指令【%s】配置数据的游戏服务进程名",
+		commandName[CommandType_CloseSvr], commandName[CommandType_SvnProjectConfig], commandName[CommandType_SvrProgressConfig])
+	commandHelpTips[CommandType_BuildPbMsg] = fmt.Sprintf(commonHelpTips, "将pb原始文件分别输出客户端和服务器需要的lua和go文件，前后端分别用svn外链引用，其中临时开发分支引用临时消息码，开发和策划分支引用开发消息码，测试和发版分支引用发版消息码",
+		commandName[CommandType_BuildPbMsg], "开发消息码", "开发消息码")
+	commandHelpTips[CommandType_ListSvnLog] = fmt.Sprintf(commonHelpTips, "根据分支名称，输出该分支下的日志，格式 日志序列、日志内容（系统 by 修改人）", commandName[CommandType_ListSvnLog], "开发分支", "开发分支")
 	commandHelpTips[CommandType_User] = GetUserConfigHelp()
 	commandHelpTips[CommandType_UserGroup] = GetUserGroupConfigHelp()
 	commandHelpTips[CommandType_UpdateTable] = fmt.Sprintf(commonHelpTips, "将表格分别输出客户端和服务器需要的lua和gob文件，前后端分别用svn外链引用，其中临时开发分支引用临时表格，开发和策划分支引用研发表格，测试分支引用测试表格，发版分支引用正式表格",
@@ -233,7 +243,7 @@ func JudgeIsNeedProjectPermission(commandType int) bool {
 		commandType == CommandType_AutoBuildClient || commandType == CommandType_PrintHotfixResList ||
 		commandType == CommandType_UploadHotfixRes2Test || commandType == CommandType_UploadHotfixRes2Release ||
 		commandType == CommandType_BackupHotfixRes || commandType == CommandType_UpdateAndRestartSvr ||
-		commandType == CommandType_CheckOutSvnProject{
+		commandType == CommandType_CheckOutSvnProject {
 		return true
 	}
 	return false
@@ -251,6 +261,7 @@ func AnalysisParam(requestParam string, commandType int) (err error, params []st
 		if commandType == CommandType_ProjectConfig || commandType == CommandType_SvnProjectConfig ||
 			commandType == CommandType_CdnConfig || commandType == CommandType_SvrProgressConfig ||
 			commandType == CommandType_SvrMachineConfig || commandType == CommandType_UpdateAndRestartSvr ||
+			commandType == CommandType_CloseSvr || commandType == CommandType_BuildPbMsg ||
 			commandType == CommandType_User || commandType == CommandType_UserGroup {
 			//可以不用参数
 			return nil, nil
@@ -291,9 +302,9 @@ func GetShellParams(commandType int, commandParams []string, projectName, webHoo
 		return errors.New(fmt.Sprintf("需要项目名称参数，，用【%s】空参数会列出所有项目配置", GetCommandNameByType(CommandType_SvnProjectConfig))), ""
 	}
 
-	err,projectPath,svnUrl,_ := GetSvnProjectInfo(projectName, svnProjectName1)
-	if nil != err{
-		return err,""
+	err, projectPath, svnUrl, _ := GetSvnProjectInfo(projectName, svnProjectName1)
+	if nil != err {
+		return err, ""
 	}
 
 	switch commandType {
@@ -303,7 +314,7 @@ func GetShellParams(commandType int, commandParams []string, projectName, webHoo
 			if svnProjectName1 == "" || svnProjectName2 == "" {
 				return errors.New(fmt.Sprintf("合并分支名称不合法（请输入两个正确分支信息如开发分支合并到策划分支），branch1：%s,branch2:%s", svnProjectName1, svnProjectName2)), ""
 			}
-			err,mergeTargetProjectPath,_,_ := GetSvnProjectInfo(projectName, svnProjectName2)
+			err, mergeTargetProjectPath, _, _ := GetSvnProjectInfo(projectName, svnProjectName2)
 			if nil != err {
 				return err, ""
 			}
@@ -324,6 +335,7 @@ func GetShellParams(commandType int, commandParams []string, projectName, webHoo
 				svnUrl, conflictAutoWayWhenMerge, mergeLog)
 		}
 	case CommandType_UpdateTable:
+	case CommandType_BuildPbMsg:
 		{
 			return nil, fmt.Sprintf("\"%s\" %s", projectPath, runtime.GOOS)
 		}
@@ -373,6 +385,28 @@ func GetShellParams(commandType int, commandParams []string, projectName, webHoo
 			//依次为projectPath svrProgressProjDirName platform zipFileName zipDirList zipFileList upload_ip port account psd svrRootPath
 			return nil, fmt.Sprintf("\"%s\" \"%s\" \"%s\" \"%s\" \"%s\"  \"%s\"  \"%s\"  \"%s\"  \"%s\"  \"%s\"  \"%s\"",
 				projectPath, dirName, platform, zipFileNameWithoutExt, zipDirList, zipFileList, ip, port, account, psd, svrRootPath)
+		}
+	case CommandType_CloseSvr:
+		{
+			if len(commandParams) <= 1 {
+				return errors.New("参数不足"), ""
+			}
+
+			//根据svn工程名称获取目标主机配置
+			err, ip, port, account, psd, platform, svrRootPath := GetSvrMachineData(projectName, svnProjectName1)
+			if err != nil {
+				return err, ""
+			}
+
+			//根据参数2获取对应的服务进程配置
+			err, _, zipFileNameWithoutExt, _, _ := GetSvrProgressData(projectName, commandParams[1])
+			if err != nil {
+				return err, ""
+			}
+
+			//依次为platform zipFileName upload_ip port account psd svrRootPath
+			return nil, fmt.Sprintf("\"%s\" \"%s\" \"%s\"  \"%s\"  \"%s\"  \"%s\"  \"%s\"",
+				platform, zipFileNameWithoutExt,ip, port, account, psd, svrRootPath)
 		}
 	}
 	return nil, ""
