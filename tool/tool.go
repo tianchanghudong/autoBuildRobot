@@ -26,6 +26,7 @@ type ExecCommandFunc func(result string)
 //阻塞式的执行外部shell命令的函数,等待执行完毕并返回标准输出
 func Exec_shell(cmdName, s string) (string, error) {
 	//函数返回一个*Cmd，用于使用给出的参数执行name指定的程序
+	log.Info("开始执行：" + s)
 	cmd := exec.Command(cmdName, "-c", s)
 
 	//读取io.Writer类型的cmd.Stdout，再通过bytes.Buffer(缓冲byte类型的缓冲器)将byte类型转化为string类型(out.String():这是bytes类型提供的接口)

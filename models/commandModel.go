@@ -84,7 +84,7 @@ func init() {
 	commandName[CommandType_SvrProgressConfig] = "游戏服务"
 	commandName[CommandType_SvrMachineConfig] = "服务器主机"
 	commandName[CommandType_UpdateAndRestartSvr] = "更新服务器"
-	commandName[CommandType_BuildPbMsg] = "构建消息码"
+	commandName[CommandType_BuildPbMsg] = "更新消息码"
 	commandName[CommandType_CloseSvr] = "关闭服务器"
 	commandName[CommandType_ListSvnLog] = "输出svn日志"
 	commandName[CommandType_UserGroup] = "用户组"

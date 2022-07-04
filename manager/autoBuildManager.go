@@ -124,20 +124,20 @@ func RecvCommand(projectName, executor, _commandMsg, webHook string, sendMsgFunc
 			isError = true
 		}
 
-		//判断是否有权限
-		isHavePermission, tips := models.JudgeIsHadPermission(autoBuildCommand.CommandType, projectName, executor, autoBuildCommand.CommandParams)
-		if !isHavePermission {
-			phoneNum += "," + models.GetProjectManagerPhone(projectName)
-			sendMsgFunc(fmt.Sprintf("builder:%s\ninfo:%s", executor, tips), phoneNum)
-			return
-		}
-
 		//执行指令
 		commandResult := ""
 		if models.JudgeIsHelpParam(autoBuildCommand.CommandParams) {
 			//如果参数是帮助，则返回指令帮助信息
 			commandResult = autoBuildCommand.HelpTips
 		} else {
+			//判断是否有权限
+			isHavePermission, tips := models.JudgeIsHadPermission(autoBuildCommand.CommandType, projectName, executor, autoBuildCommand.CommandParams)
+			if !isHavePermission {
+				phoneNum += "," + models.GetProjectManagerPhone(projectName)
+				sendMsgFunc(fmt.Sprintf("builder:%s\ninfo:%s", executor, tips), phoneNum)
+				return
+			}
+
 			//检测外链是否异常
 			var err error
 			err = checkSVNExternals(autoBuildCommand)
@@ -431,8 +431,9 @@ func shellCommand(command models.AutoBuildCommand) (string, error) {
 	tool.ExecCommand(commandName, commandTxt, func(resultLine string) {
 		//简单判断是否异常吧
 		lowerResult := strings.ToLower(resultLine)
-		if strings.Contains(resultLine, "异常") || strings.Contains(lowerResult, "exception") ||
-			strings.Contains(resultLine, "失败") || strings.Contains(lowerResult, "fail") {
+		if !strings.Contains(resultLine,"    ") && (strings.Contains(resultLine, "异常") || strings.Contains(lowerResult, "exception") ||
+			strings.Contains(resultLine, "失败") || strings.Contains(lowerResult, "fail")){
+			//svn输出都包含"    "，这里简单通过这个过滤掉svn文件名-_-
 			isError = true
 		}
 
