@@ -334,8 +334,7 @@ func GetShellParams(commandType int, commandParams []string, projectName, webHoo
 			return nil, fmt.Sprintf("\"%s\" \"%s\" %s %s", mergeTargetProjectPath,
 				svnUrl, conflictAutoWayWhenMerge, mergeLog)
 		}
-	case CommandType_UpdateTable:
-	case CommandType_BuildPbMsg:
+	case CommandType_UpdateTable, CommandType_BuildPbMsg:
 		{
 			return nil, fmt.Sprintf("\"%s\" %s", projectPath, runtime.GOOS)
 		}
