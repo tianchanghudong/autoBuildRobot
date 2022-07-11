@@ -15,10 +15,11 @@ import (
 //项目配置
 type ProjectModel struct {
 	Manager                   string   `json:"Manager"`                   //管理员
-	UnopenCommandTypeList     []int    `json:"UnopenCommandTypeList"`     //开放的指令
+	UnopenCommandNameList     []string `json:"UnopenCommandNameList"`     //未开放的指令名字列表
 	ClientEnginePath          string   `json:"ClientEnginePath"`          //客户端引擎地址
 	AutoBuildClientMethodList []string `json:"AutoBuildClientMethodList"` //客户端构建方法列表
 	TempBanNormalUserCommands []string `json:"TempBanNormalUserCommands"` //临时禁止普通成员指令数组（如发版本时）
+	ExternalRelativeAddrList  []string `json:"ExternalRelativeAddrList"`  //工程外链相对地址
 }
 
 var projectFileName = "projectData.gob"
@@ -38,7 +39,7 @@ func UpdateProject(projectName, projectConfig string) (result string, err error)
 	//解析数据
 	projectModel := new(ProjectModel)
 	projectModel.TempBanNormalUserCommands = make([]string, 0)
-	projectModel.UnopenCommandTypeList = make([]int, 0)
+	projectModel.UnopenCommandNameList = make([]string, 0)
 	projectModel.AutoBuildClientMethodList = make([]string, 0)
 	err = tool.UnmarshJson([]byte(projectConfig), &projectModel)
 	if nil != err {
@@ -61,8 +62,8 @@ func UpdateProject(projectName, projectConfig string) (result string, err error)
 		if nil != projectModel.TempBanNormalUserCommands && len(projectModel.TempBanNormalUserCommands) > 0 {
 			projectsMap[projectName].TempBanNormalUserCommands = projectModel.TempBanNormalUserCommands
 		}
-		if nil != projectModel.UnopenCommandTypeList && len(projectModel.UnopenCommandTypeList) > 0 {
-			projectsMap[projectName].UnopenCommandTypeList = projectModel.UnopenCommandTypeList
+		if nil != projectModel.UnopenCommandNameList && len(projectModel.UnopenCommandNameList) > 0 {
+			projectsMap[projectName].UnopenCommandNameList = projectModel.UnopenCommandNameList
 		}
 	} else {
 		projectsMap[projectName] = projectModel
@@ -92,9 +93,10 @@ func GetProjectConfigHelp() (result string) {
 	project.Manager = "项目管理员名字"
 	project.ClientEnginePath = "项目客户端引擎（如unity）路径"
 	project.AutoBuildClientMethodList = make([]string, 0)
-	project.UnopenCommandTypeList = make([]int, 0)
+	project.UnopenCommandNameList = make([]string, 0)
 	project.TempBanNormalUserCommands = make([]string, 0)
-	return fmt.Sprintf("例：【%s：%s】\n其中，UnopenCommandTypeList是不开放的指令索引数组,TempBanNormalUserCommands是临时要禁用的指令名称或者项目名称\nAutoBuildMethodList对应客户端AutoBuild.cs定义的构建方法数组\n如多个配置用分号分割", commandName[CommandType_ProjectConfig], tool.MarshalJson(project))
+	return fmt.Sprintf(`例：【%s：%s】\n其中，UnopenCommandNameList是不开放的指令数组,TempBanNormalUserCommands是临时要禁用的指令名称或者项目名称
+AutoBuildMethodList对应客户端AutoBuild.cs定义的构建方法数组,如多个配置用分号分割`, commandName[CommandType_ProjectConfig], tool.MarshalJson(project))
 }
 
 //获取项目管理员
@@ -150,12 +152,12 @@ func JudgeIsManager(projectName, userName string) bool {
 }
 
 //获取不开放的指令
-func GetUnopenCommandList(projectName string) (commandList []int) {
+func GetUnopenCommandList(projectName string) (commandList []string) {
 	projectDataLock.Lock()
 	defer projectDataLock.Unlock()
-	commandList = make([]int, 0)
+	commandList = make([]string, 0)
 	if project, ok := projectsMap[projectName]; ok {
-		return project.UnopenCommandTypeList
+		return project.UnopenCommandNameList
 	}
 	return commandList
 }

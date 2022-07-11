@@ -33,6 +33,8 @@ const (
 	CommandType_UserGroup                      //用户组
 	CommandType_User                           //用户
 	CommandType_CloseRobot                     //关闭机器人
+	CommandType_TemplateCmd                    //模板指令
+	CommandType_ExcuteTemplateCmd              //执行模板指令
 	CommandType_Max
 )
 
@@ -46,16 +48,18 @@ type AutoBuildCommand struct {
 	Func          autoBuildCommandFunc //指令处理函数
 	ProjectName   string               //项目名称（群标题，一个群一个项目）
 	WebHook       string               //回调地址
-	ResultFunc    AutoBuildResultFunc  //结果处理函数
+	SendResult    SendResultFunc       //发送处理结果
 }
 
-type autoBuildCommandFunc func(autoBuildCommand AutoBuildCommand) (string, error) //指令处理函数指针
-type AutoBuildResultFunc func(msg, executorPhoneNum string)                       //自动构建结果处理函数
+type autoBuildCommandFunc func(autoBuildCommand *AutoBuildCommand) (string, error) //指令处理函数指针
+type SendResultFunc func(msg, executorPhoneNum string)                            //发送处理结果函数
 var autoBuildCommandMap map[int]AutoBuildCommand
 var command [CommandType_Max]string         //指令
 var commandName [CommandType_Max]string     //指令名字
 var commandHelpTips [CommandType_Max]string //指令帮助提示
 var autoBuildCommandRWLock sync.RWMutex
+
+const seriesCommandSeparator = "->" //多条指令分隔符
 
 func init() {
 	autoBuildCommandMap = make(map[int]AutoBuildCommand)
@@ -91,6 +95,8 @@ func init() {
 	commandName[CommandType_User] = "用户"
 	commandName[CommandType_UpdateTable] = "更新表格"
 	commandName[CommandType_CloseRobot] = "关闭自动构建机器人"
+	commandName[CommandType_TemplateCmd] = "模板指令"
+	commandName[CommandType_ExcuteTemplateCmd] = "执行模板指令"
 
 	//初始化指令帮助提示
 	commandHelpTips[CommandType_ProjectConfig] = GetProjectConfigHelp()
@@ -119,6 +125,10 @@ func init() {
 	commandHelpTips[CommandType_UpdateTable] = fmt.Sprintf(commonHelpTips, "将表格分别输出客户端和服务器需要的lua和gob文件，前后端分别用svn外链引用，其中临时开发分支引用临时表格，开发和策划分支引用研发表格，测试分支引用测试表格，发版分支引用正式表格",
 		commandName[CommandType_UpdateTable], "研发表格", "研发表格")
 	commandHelpTips[CommandType_CloseRobot] = ""
+	commandHelpTips[CommandType_TemplateCmd] = GetCmdTempConfigHelp()
+	commandHelpTips[CommandType_ExcuteTemplateCmd] = fmt.Sprintf("按顺序执行在【%s】配置的指令\n例：【%s:%s】,其中参数(%s)是指令%s中的指令名字",
+		commandName[CommandType_TemplateCmd], commandName[CommandType_ExcuteTemplateCmd], "更新快接包","更新快接包",commandName[CommandType_TemplateCmd])
+
 }
 
 //添加指令
@@ -157,7 +167,7 @@ func GetCommandHelpInfo(projectName string) (help string) {
 	for i := 0; i < CommandType_Max; i++ {
 		isUnOpen := false
 		for _, unOpenCommand := range unOpenCommandList {
-			if unOpenCommand == i {
+			if unOpenCommand == commandName[i] {
 				isUnOpen = true
 				break
 			}
@@ -182,7 +192,52 @@ func GetCommandHelpInfo(projectName string) (help string) {
 }
 
 //解析指令
-func AnalysisCommand(rawCommand string) (ok bool, autoBuildCommand AutoBuildCommand) {
+func AnalysisCommand(projectName,rawCmd string)(err error, autoBuildCommandList []*AutoBuildCommand){
+	//先解析指令
+	autoBuildCommandList = make([]*AutoBuildCommand,0)
+	ok, autoBuildCommand := AnalysisOneCommand(rawCmd)
+	if !ok {
+		//不存在指令
+		return errors.New(fmt.Sprintf("解析指令【%s】异常，请检查是否有该指令,或者输入【帮助】获取所有指令帮助信息！",rawCmd)) ,autoBuildCommandList
+	}
+
+	//先处理模板指令相关
+	if autoBuildCommand.CommandType == CommandType_TemplateCmd {
+		autoBuildCommandList = append(autoBuildCommandList,&autoBuildCommand)
+		return nil,autoBuildCommandList
+	}else if autoBuildCommand.CommandType == CommandType_ExcuteTemplateCmd {
+		//如果是模板指令帮助则返回原指令
+		if JudgeIsHelpParam(autoBuildCommand.CommandParams){
+			autoBuildCommandList = append(autoBuildCommandList,&autoBuildCommand)
+			return nil,autoBuildCommandList
+		}
+
+		//获取模板指令
+		tempCmdName := autoBuildCommand.CommandParams
+		tempCmd := GetTemplateCmd(projectName,tempCmdName)
+		if "" == tempCmd{
+			return errors.New(fmt.Sprintf("不存在模板指令：%s，请在【%s】指令中配置",tempCmdName,commandName[CommandType_TemplateCmd])) ,autoBuildCommandList
+		}
+		rawCmd = tempCmd
+	}
+
+	//再看是否多条指令
+	commandMsgList := strings.Split(rawCmd, seriesCommandSeparator)
+	for _,v := range commandMsgList{
+		if "" == v{
+			continue
+		}
+		ok, autoBuildCommand := AnalysisOneCommand(v)
+		if !ok {
+			return errors.New(fmt.Sprintf("解析指令【%s】异常，请检查是否有该指令,或者输入【帮助】获取所有指令帮助信息！",v)) ,autoBuildCommandList
+		}
+		autoBuildCommandList = append(autoBuildCommandList,&autoBuildCommand)
+	}
+	return nil,autoBuildCommandList
+}
+
+//解析一条指令
+func AnalysisOneCommand(rawCommand string) (ok bool, autoBuildCommand AutoBuildCommand) {
 	//解析指令,先分割参数
 	paramSeparators := []string{":", "："}
 	requestCommand := rawCommand
@@ -217,7 +272,7 @@ func AnalysisCommand(rawCommand string) (ok bool, autoBuildCommand AutoBuildComm
 
 	//获取指令信息
 	if !ok {
-		autoBuildCommand = autoBuildCommandMap[CommandType_Help]
+		return
 	}
 	autoBuildCommand.CommandParams = requestParam
 	autoBuildCommandRWLock.RUnlock()
@@ -290,7 +345,7 @@ func AnalysisParam(requestParam string, commandType int) (err error, params []st
 //获取shell指令参数
 func GetShellParams(commandType int, commandParams []string, projectName, webHook string) (error, string) {
 	//不需要参数
-	if commandType == CommandType_Help || commandType == CommandType_CloseRobot {
+	if commandType == CommandType_Help || commandType == CommandType_CloseRobot{
 		return nil, ""
 	}
 
@@ -405,7 +460,7 @@ func GetShellParams(commandType int, commandParams []string, projectName, webHoo
 
 			//依次为platform zipFileName upload_ip port account psd svrRootPath
 			return nil, fmt.Sprintf("\"%s\" \"%s\" \"%s\"  \"%s\"  \"%s\"  \"%s\"  \"%s\"",
-				platform, zipFileNameWithoutExt,ip, port, account, psd, svrRootPath)
+				platform, zipFileNameWithoutExt, ip, port, account, psd, svrRootPath)
 		}
 	}
 	return nil, ""
