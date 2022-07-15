@@ -17,14 +17,18 @@ import (
 )
 
 //app.conf配置信息
-var winGitPath = ""                       //window git 安装路径，用于执行shell脚本
-var lineInOneMes = 80                     //一条构建消息的行数
-var maxIntervalTimeBetween2Msg = int64(5) //一条消息间隔最长时间
-var logFilter = ""                        //svn日志过滤字符串
-var closeRobotTime = 3580                 //定时关闭机器人得时间（从0点算起得秒数）
+var winGitPath = ""        //window git 安装路径，用于执行shell脚本
+var lineInOneMes = 200     //一条构建消息的行数
+var logFilter = ""         //svn日志过滤字符串
+var closeRobotTime = 3580  //定时关闭机器人得时间（从0点算起得秒数）
+var svnMachineAddr = ""    //svn机器地址
+var svnMachineAccount = "" //svn机器账号
+var svnMachinePwd = ""     //svn机器密码
 
-const shellPath = "shell"           //shell脚本地址
-const seriesCommandSeparator = "->" //多条指令分隔符
+const (
+	shellPath                  = "shell"  //shell脚本地址
+	maxIntervalTimeBetween2Msg = int64(5) //一条消息间隔最长时间
+)
 
 //初始化
 func init() {
@@ -37,6 +41,12 @@ func init() {
 	logFilter = temp.(string)
 	temp, _ = beego.GetConfig("Int", "closeRobotTime", 3580)
 	closeRobotTime = temp.(int)
+	temp, _ = beego.GetConfig("String", "svnMachineAddr", "")
+	svnMachineAddr = temp.(string)
+	temp, _ = beego.GetConfig("String", "svnMachineAccount", "")
+	svnMachineAccount = temp.(string)
+	temp, _ = beego.GetConfig("String", "svnMachinePwd", "")
+	svnMachinePwd = temp.(string)
 	log.Info(fmt.Sprintf("winGitPath:%s,lineInOneMes：%d,logFilter:%s,closeRobotTime:%d",
 		winGitPath, lineInOneMes, logFilter, closeRobotTime))
 
@@ -64,6 +74,7 @@ func init() {
 	models.AddCommand(models.CommandType_ListSvnLog, listAllSvnLog)
 	models.AddCommand(models.CommandType_CloseRobot, shellCommand)
 	models.AddCommand(models.CommandType_TemplateCmd, updateCmdTempConfigCommand)
+	models.AddCommand(models.CommandType_BackupSvn, backupSvn)
 
 	//直接在指令执行前先判断并获取模板指令
 	models.AddCommand(models.CommandType_ExcuteTemplateCmd, nullCommandFunc)
@@ -109,8 +120,8 @@ func RecvCommand(projectName, executor, rawCmd, webHook string, sendResultFunc m
 	}()
 
 	//解析指令
-	errAnalysisCommand,commandList := models.AnalysisCommand(projectName,rawCmd)
-	if nil != errAnalysisCommand{
+	errAnalysisCommand, commandList := models.AnalysisCommand(projectName, rawCmd)
+	if nil != errAnalysisCommand {
 		sendResultFunc(fmt.Sprintf("执行异常：%s", errAnalysisCommand.Error()), phoneNum)
 		return
 	}
@@ -119,7 +130,7 @@ func RecvCommand(projectName, executor, rawCmd, webHook string, sendResultFunc m
 	cmdCount := len(commandList)
 	for cmdIndex, autoBuildCommand := range commandList {
 		//先通知构建群操我已经在处理
-		result := fmt.Sprintf("开始执行%d/%d指令：【%s:%s】...",cmdIndex + 1,cmdCount, autoBuildCommand.Name,autoBuildCommand.CommandParams)
+		result := fmt.Sprintf("开始执行%d/%d指令：【%s:%s】...", cmdIndex+1, cmdCount, autoBuildCommand.Name, autoBuildCommand.CommandParams)
 		sendResultFunc(fmt.Sprintf("builder:%s\ninfo:%s", executor, result), "")
 		time.Sleep(time.Duration(1) * time.Millisecond)
 
@@ -150,15 +161,14 @@ func RecvCommand(projectName, executor, rawCmd, webHook string, sendResultFunc m
 		}
 
 		//发送执行结果
-		sendResultFunc(fmt.Sprintf("builder:%s\ncommand:%s:%s\ninfo:%s", executor, autoBuildCommand.Name,autoBuildCommand.CommandParams, commandResult), phoneNum)
+		sendResultFunc(fmt.Sprintf("builder:%s\ncommand:%s:%s\ninfo:%s", executor, autoBuildCommand.Name, autoBuildCommand.CommandParams, commandResult), phoneNum)
 	}
 
-	if cmdCount > 1{
+	if cmdCount > 1 {
 		//多条指令
 		sendResultFunc(fmt.Sprintf("builder:%s\ninfo:所有指令执行完成,【%s】", executor, rawCmd), phoneNum)
 	}
 }
-
 
 //执行帮助指令
 func helpCommand(command *models.AutoBuildCommand) (string, error) {
@@ -226,7 +236,7 @@ func updateSvrMachineConfigCommand(command *models.AutoBuildCommand) (string, er
 }
 
 //检出svn工程
-func checkOutSvnProject(command *models.AutoBuildCommand)(string, error){
+func checkOutSvnProject(command *models.AutoBuildCommand) (string, error) {
 	//解析指令
 	err, params := models.AnalysisParam(command.CommandParams, command.CommandType)
 	if nil != err {
@@ -234,7 +244,7 @@ func checkOutSvnProject(command *models.AutoBuildCommand)(string, error){
 	}
 
 	//获取svn工程配置
-	err,projectPath,svnUrl,_ := models.GetSvnProjectInfo(command.ProjectName,params[0])
+	err, projectPath, svnUrl, _ := models.GetSvnProjectInfo(command.ProjectName, params[0])
 	if nil != err {
 		return "", err
 	}
@@ -245,30 +255,30 @@ func checkOutSvnProject(command *models.AutoBuildCommand)(string, error){
 	}
 
 	//如果路径存在，则输出svn信息
-	isExist,err := tool.PathExists(projectPath)
-	if nil != err{
-		return "",err
+	isExist, err := tool.PathExists(projectPath)
+	if nil != err {
+		return "", err
 	}
-	if isExist{
+	if isExist {
 		svnInfoCommand := fmt.Sprintf("cd %s;svn info", projectPath)
-		result,err :=  tool.Exec_shell(commandName, svnInfoCommand)
-		return fmt.Sprintf("已存在【%s】svn工程!!\n%s",params[0],result),err
+		result, err := tool.Exec_shell(commandName, svnInfoCommand)
+		return fmt.Sprintf("已存在【%s】svn工程!!\n%s", params[0], result), err
 	}
 
 	//创建文件夹
 	dirErr := tool.CreateDir(projectPath)
-	if nil != dirErr{
-		return "",dirErr
+	if nil != dirErr {
+		return "", dirErr
 	}
 
 	//检出svn
 	count := 0
 	temp := ""
 	lastTime := time.Now().Unix()
-	svnCheckOutCommand := fmt.Sprintf("cd %s;svn co %s .", projectPath,svnUrl)
+	svnCheckOutCommand := fmt.Sprintf("cd %s;svn co %s .", projectPath, svnUrl)
 	tool.ExecCommand(commandName, svnCheckOutCommand, func(resultLine string) {
 		timeNow := time.Now().Unix()
-		if (timeNow-lastTime) < maxIntervalTimeBetween2Msg {
+		if (timeNow - lastTime) < maxIntervalTimeBetween2Msg {
 			//过滤掉一些消息，要不消息太恐怖了
 			return
 		}
@@ -283,14 +293,14 @@ func checkOutSvnProject(command *models.AutoBuildCommand)(string, error){
 			lastTime = timeNow
 		}
 	})
-	return temp + "\n检出完毕（避免消息爆炸，有过滤一些svn检出日志）！！",nil
+	return temp + "\n检出完毕（避免消息爆炸，有过滤一些svn检出日志）！！", nil
 }
 
 //执行shell指令
 func shellCommand(command *models.AutoBuildCommand) (string, error) {
 	//检测外链是否正确（只有构建客户端和更新服务器会检测）
-	if errCheckExternal := checkSVNExternals(command);errCheckExternal != nil{
-		return "",errCheckExternal
+	if errCheckExternal := checkSVNExternals(command); errCheckExternal != nil {
+		return "", errCheckExternal
 	}
 
 	//获取指令
@@ -327,8 +337,8 @@ func shellCommand(command *models.AutoBuildCommand) (string, error) {
 	tool.ExecCommand(commandName, commandTxt, func(resultLine string) {
 		//简单判断是否异常吧
 		lowerResult := strings.ToLower(resultLine)
-		if !strings.Contains(resultLine,"    ") && (strings.Contains(resultLine, "异常") || strings.Contains(lowerResult, "exception") ||
-			strings.Contains(resultLine, "失败") || strings.Contains(lowerResult, "fail")){
+		if !strings.Contains(resultLine, "    ") && (strings.Contains(resultLine, "异常") || strings.Contains(lowerResult, "exception") ||
+			strings.Contains(resultLine, "失败") || strings.Contains(lowerResult, "fail")) {
 			//svn输出都包含"    "，这里简单通过这个过滤掉svn文件名-_-
 			isError = true
 		}
@@ -346,7 +356,7 @@ func shellCommand(command *models.AutoBuildCommand) (string, error) {
 	})
 
 	//检测冲突
-	if errCheckConflict := checkSVNConflictAndNotifyManager(command);errCheckConflict != nil{
+	if errCheckConflict := checkSVNConflictAndNotifyManager(command); errCheckConflict != nil {
 		temp += "\n" + errCheckConflict.Error()
 		isError = true
 	}
@@ -354,7 +364,7 @@ func shellCommand(command *models.AutoBuildCommand) (string, error) {
 	//如果是导表或者打消息码，则要提交或者还原
 	if command.CommandType == models.CommandType_UpdateTable ||
 		command.CommandType == models.CommandType_BuildPbMsg {
-		_,projectPath,_,_ := models.GetSvnProjectInfo(command.ProjectName, params[0])
+		_, projectPath, _, _ := models.GetSvnProjectInfo(command.ProjectName, params[0])
 		if isError {
 			//还原
 			revertCommand := fmt.Sprintf("cd %s;svn revert -R .;", projectPath)
@@ -380,7 +390,7 @@ func shellCommand(command *models.AutoBuildCommand) (string, error) {
 func checkSVNConflictAndNotifyManager(command *models.AutoBuildCommand) error {
 	if command.CommandType != models.CommandType_SvnMerge &&
 		command.CommandType != models.CommandType_UpdateTable &&
-		command.CommandType != models.CommandType_BuildPbMsg{
+		command.CommandType != models.CommandType_BuildPbMsg {
 		return nil
 	}
 
@@ -390,8 +400,8 @@ func checkSVNConflictAndNotifyManager(command *models.AutoBuildCommand) error {
 		return err
 	}
 	svnProjectName := params[0]
-	err,projectPath,_,_ := models.GetSvnProjectInfo(command.ProjectName, svnProjectName)
-	if nil != err{
+	err, projectPath, _, _ := models.GetSvnProjectInfo(command.ProjectName, svnProjectName)
+	if nil != err {
 		return err
 	}
 	commandName := "sh"
@@ -423,8 +433,8 @@ func checkSVNExternals(command *models.AutoBuildCommand) (err error) {
 		return err
 	}
 	svnProjectName := params[0]
-	err,projectPath,_,svnExternalKeyword := models.GetSvnProjectInfo(command.ProjectName, svnProjectName)
-	if nil != err{
+	err, projectPath, _, svnExternalKeyword := models.GetSvnProjectInfo(command.ProjectName, svnProjectName)
+	if nil != err {
 		return err
 	}
 	if "" == svnExternalKeyword {
@@ -440,19 +450,19 @@ func checkSVNExternals(command *models.AutoBuildCommand) (err error) {
 		commandName = winGitPath
 	}
 
-	getExternalCmd := fmt.Sprintf(`cd %s;svn st | awk '{if ($1 == "X") {print $2} }' | sed 's/\\/\//g' | awk -F / '{for(i=1;i<NF;i++){if(i==NF-1){print $i "/"}else{printf $i "/"}}}'`,projectPath)
+	getExternalCmd := fmt.Sprintf(`cd %s;svn st | awk '{if ($1 == "X") {print $2} }' | sed 's/\\/\//g' | awk -F / '{for(i=1;i<NF;i++){if(i==NF-1){print $i "/"}else{printf $i "/"}}}'`, projectPath)
 	getExternalResult, _ := tool.Exec_shell(commandName, getExternalCmd)
-	checkExternalPathList := strings.Split(getExternalResult,"\n")
+	checkExternalPathList := strings.Split(getExternalResult, "\n")
 	tempMap := make(map[string]bool)
-	for _,path := range checkExternalPathList{
-		if "" == path || strings.Contains(path,"ServerUnit") {
+	for _, path := range checkExternalPathList {
+		if "" == path || strings.Contains(path, "ServerUnit") {
 			continue
 		}
-		if ok,_:= tempMap[path];ok{
+		if ok, _ := tempMap[path]; ok {
 			continue
 		}
 		tempMap[path] = true
-		checkMergeCommand := fmt.Sprintf("svn pg svn:externals %s/%s", projectPath,path)
+		checkMergeCommand := fmt.Sprintf("svn pg svn:externals %s/%s", projectPath, path)
 		checkSvnExternalsResult, _ := tool.Exec_shell(commandName, checkMergeCommand)
 		log.Info(fmt.Sprintf("检测外链：%s,result:%s", checkMergeCommand, checkSvnExternalsResult))
 		if checkSvnExternalsResult == "" {
@@ -479,9 +489,9 @@ func printHotfixResList(command *models.AutoBuildCommand) (string, error) {
 		return "", err
 	}
 	svnProjectName := params[0]
-	err,projectPath,_,_ := models.GetSvnProjectInfo(command.ProjectName, svnProjectName)
-	if err != nil{
-		return "",err
+	err, projectPath, _, _ := models.GetSvnProjectInfo(command.ProjectName, svnProjectName)
+	if err != nil {
+		return "", err
 	}
 
 	//再获取cdn配置
@@ -586,9 +596,9 @@ func uploadHotfixRes2Test(command *models.AutoBuildCommand) (string, error) {
 		return "", err
 	}
 	svnProjectName := params[0]
-	err,projectPath,_,_ := models.GetSvnProjectInfo(command.ProjectName, svnProjectName)
-	if err != nil{
-		return "",err
+	err, projectPath, _, _ := models.GetSvnProjectInfo(command.ProjectName, svnProjectName)
+	if err != nil {
+		return "", err
 	}
 
 	//从缓存中取，如果没有则提示重新获取更新列表
@@ -767,9 +777,9 @@ func backupHotfixRes(command *models.AutoBuildCommand) (string, error) {
 	svnProjectName := params[0]
 
 	//判断本地files.txt是否存在
-	err,projectPath,_,_ := models.GetSvnProjectInfo(command.ProjectName, svnProjectName)
-	if nil != err{
-		return "",err
+	err, projectPath, _, _ := models.GetSvnProjectInfo(command.ProjectName, svnProjectName)
+	if nil != err {
+		return "", err
 	}
 	localFilesPath := path.Join(projectPath, models.CLIENTLOCALRESPATH, models.CLIENTHOTFIXEDFILENAME)
 	if !tool.CheckFileIsExist(localFilesPath) {
@@ -887,7 +897,7 @@ func listAllSvnLog(command *models.AutoBuildCommand) (string, error) {
 		return "", err
 	}
 	svnProjectName := params[0]
-	err,_,svnPath,_ := models.GetSvnProjectInfo(command.ProjectName, svnProjectName)
+	err, _, svnPath, _ := models.GetSvnProjectInfo(command.ProjectName, svnProjectName)
 	if nil != err {
 		return "", err
 	}
@@ -1071,6 +1081,38 @@ func updateCmdTempConfigCommand(command *models.AutoBuildCommand) (string, error
 		//搜索svrProgress配置
 		return models.QueryCmdTempsDataByProject(command.ProjectName, svrConfig), nil
 	}
+}
+
+//备份svn
+func backupSvn(command *models.AutoBuildCommand) (string, error) {
+	count := 0
+	temp := ""
+	lastTime := time.Now().Unix()
+	svnRepositories := ""
+	startFlag := "backup "
+	err := tool.RemoteShell("python backupSvn.py", svnMachineAccount, svnMachinePwd, svnMachineAddr, func(resultLine string) {
+		//每隔80行发送一条构建消息
+		if strings.Contains(resultLine, startFlag) {
+			svnRepositories = strings.ReplaceAll(resultLine, "\r\n", "")
+			resultLine = "start " + resultLine
+		} else {
+			resultLine = svnRepositories + resultLine
+		}
+
+		count++
+		temp += resultLine
+		timeNow := time.Now().Unix()
+		if count >= lineInOneMes * 10 || (timeNow-lastTime) > maxIntervalTimeBetween2Msg {
+			command.SendResult(temp, "")
+			temp = ""
+			count = 0
+			lastTime = timeNow
+		}
+	})
+	if nil == err {
+		return temp, nil
+	}
+	return "", err
 }
 
 //空方法

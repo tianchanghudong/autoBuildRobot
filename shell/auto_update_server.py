@@ -9,10 +9,27 @@ import paramiko
 import contextlib
 import scpclient
 import os.path
+import subprocess
+
+def exe_command(command):
+    try:
+        sys.stdout.flush()
+        p=subprocess.Popen(command, shell=True, stdout=sys.stdout,stderr=sys.stdout)
+        result = p.wait()
+        if result == 0:
+            return True
+        else:
+            return False
+    except Exception as e:
+        print(e)
+        return False
 
 def svn_update(base_path):
-    os.system('cd {0};svn update .'.format(base_path))
-    print "svn update ok"
+    if exe_command('cd {0};svn update .'.format(base_path)):        
+        print "svn update ok"
+    else:
+        print "svn update Exception"
+        exit(2)
 
 def zipdir(f, dirname):
     files = glob.glob('./%s/*'%dirname)
@@ -60,14 +77,13 @@ def package(projectPath,svrProgressProjDirName,platform,zipFileNameWithoutExt,zi
     return True
 
 def compile(platform):
-    compile_result = os.system("CGO_ENABLED=0 GOOS={0} GOARCH=amd64 go build".format(platform))
-    if compile_result != 0:
+    if exe_command("CGO_ENABLED=0 GOOS={0} GOARCH=amd64 go build".format(platform)):
+        print("compile OK")
+        return True
+    else:
         print("compile failed")
         return False
-        
-    print("compile OK")
-    return True
-    
+
 def scp_upload(upload_ip,port,account,psd,file,uploadPath):
 	ssh = paramiko.SSHClient()
 	ssh.load_system_host_keys()

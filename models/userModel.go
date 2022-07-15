@@ -69,7 +69,7 @@ func GetProjectManagerPhone(projectName string) string {
 //判断是否有权限
 func JudgeIsHadPermission(commandType int, projectName, useName, commandParams string) (bool, string) {
 	//管理员有所有权限
-	if strings.Contains(superUser, useName) || JudgeIsManager(projectName, useName) {
+	if strings.Contains(superUser, useName) || (!JudgeIsOnlySuperUserCmd(commandType) && JudgeIsManager(projectName, useName)) {
 		return true, ""
 	}
 

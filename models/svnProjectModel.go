@@ -61,9 +61,6 @@ func UpdateSvnProject(projectName, svnProjectConfig string) (result string) {
 			if svnProjectModel.SvnUrl == "" {
 				svnProjectModel.SvnUrl = oldSvnProject.SvnUrl
 			}
-			if svnProjectModel.SvnExternalKeyword == "" {
-				svnProjectModel.SvnExternalKeyword = oldSvnProject.SvnExternalKeyword
-			}
 		}
 		svnProjectMap[svnProjectModel.ProjectName] = svnProjectModel
 	}

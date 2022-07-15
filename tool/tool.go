@@ -11,8 +11,10 @@ import (
 	"errors"
 	"github.com/astaxie/beego/cache"
 	"github.com/axgle/mahonia"
+	"golang.org/x/crypto/ssh"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -83,6 +85,89 @@ func ExecCommand(cmdName, command string, execCommandFunc ExecCommandFunc) bool 
 	//阻塞直到该命令执行完成，该命令必须是被Start方法开始执行的
 	cmd.Wait()
 	return true
+}
+
+//执行远端shell
+func RemoteShell(cmd,account,pwd,addr string,execCommandFunc ExecCommandFunc) error {
+	//beego.Run()
+	session, err := SSHConnect( account, pwd, addr )
+	if err != nil {
+		return err
+	}
+
+	defer session.Close()
+	if nil == execCommandFunc{
+		session.Run(cmd)
+		return nil
+	}
+	stdout, err := session.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	go func(){
+		session.Run(cmd)
+	}()
+
+
+	//创建一个流来读取管道内内容，这里逻辑是通过一行一行的读取的
+	reader := bufio.NewReader(stdout)
+	var enc mahonia.Decoder
+	if runtime.GOOS == "windows" {
+		enc = mahonia.NewDecoder("gbk")
+	} else {
+		enc = mahonia.NewDecoder("utf-8")
+	}
+
+	//实时循环读取输出流中的一行内容
+	for {
+		line, err2 := reader.ReadString('\n')
+		if err2 != nil || io.EOF == err2 {
+			log.Error("err2 != nil || io.EOF == err2")
+			break
+		}
+		if line == "\r\n" {
+			continue
+		}
+		temp := enc.ConvertString(line)
+		execCommandFunc(temp)
+	}
+	return nil
+}
+
+//建立一个ssh链接
+func SSHConnect( user, password, addr string) ( *ssh.Session, error ) {
+	var (
+		auth         []ssh.AuthMethod
+		clientConfig *ssh.ClientConfig
+		client       *ssh.Client
+		session      *ssh.Session
+		err          error
+	)
+
+	// get auth method
+	auth = make([]ssh.AuthMethod, 0)
+	auth = append(auth, ssh.Password(password))
+	hostKeyCallbk := func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		return nil
+	}
+
+	clientConfig = &ssh.ClientConfig{
+		User:               user,
+		Auth:               auth,
+		// Timeout:             30 * time.Second,
+		HostKeyCallback:    hostKeyCallbk,
+	}
+
+	// connet to ssh
+	if client, err = ssh.Dial( "tcp", addr, clientConfig ); err != nil {
+		return nil, err
+	}
+
+	// create session
+	if session, err = client.NewSession(); err != nil {
+		return nil, err
+	}
+	return session, nil
 }
 
 //发送http请求
