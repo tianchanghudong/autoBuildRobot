@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/astaxie/beego/cache"
 	"github.com/axgle/mahonia"
 	"golang.org/x/crypto/ssh"
@@ -21,12 +22,20 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"sync"
 )
 
 type ExecCommandFunc func(result string)
 
-//阻塞式的执行外部shell命令的函数,等待执行完毕并返回标准输出
-func Exec_shell(cmdName, s string) (string, error) {
+var complexCmdMap map[string]string //复杂指令字典 key:指令 value:执行该指令所在项目名称
+var complexCmdMapLock sync.Mutex
+
+func init() {
+	complexCmdMap = make(map[string]string)
+}
+
+// 执行简单指令,等待执行完毕并返回标准输出
+func ExecSimpleCmd(cmdName, s string) (string, error) {
 	//函数返回一个*Cmd，用于使用给出的参数执行name指定的程序
 	log.Info("开始执行：" + s)
 	cmd := exec.Command(cmdName, "-c", s)
@@ -47,16 +56,29 @@ func Exec_shell(cmdName, s string) (string, error) {
 	return enc.ConvertString(out.String()), err
 }
 
-//阻塞式的执行外部shell命令的函数,标准输出的逐行实时进行处理的
-func ExecCommand(cmdName, command string, execCommandFunc ExecCommandFunc) bool {
+// 执行相对负责的指令,实时输出结果
+func ExecComplexCmd(projectName, cmdName, command string, execCommandFunc ExecCommandFunc) error {
+	//先判断是否已经在执行该命令
+	complexCmdMapLock.Lock()
+	if _projectName, ok := complexCmdMap[command]; ok {
+		complexCmdMapLock.Unlock()
+		return errors.New(fmt.Sprintf("在%s中已经正在执行相同指令，请核实！", _projectName))
+	}
+	complexCmdMap[command] = projectName
+	complexCmdMapLock.Unlock()
+	defer func() {
+		complexCmdMapLock.Lock()
+		delete(complexCmdMap, command)
+		complexCmdMapLock.Unlock()
+	}()
+
 	log.Info("开始执行：" + command)
 	cmd := exec.Command(cmdName, "-c", command)
 
 	//StdoutPipe方法返回一个在命令Start后与命令标准输出关联的管道。Wait方法获知命令结束后会关闭这个管道，一般不需要显式的关闭该管道。
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		log.Error(err)
-		return false
+	stdout, errCmd := cmd.StdoutPipe()
+	if errCmd != nil {
+		return errCmd
 	}
 	cmd.Start()
 
@@ -84,19 +106,19 @@ func ExecCommand(cmdName, command string, execCommandFunc ExecCommandFunc) bool 
 
 	//阻塞直到该命令执行完成，该命令必须是被Start方法开始执行的
 	cmd.Wait()
-	return true
+	return nil
 }
 
-//执行远端shell
-func RemoteShell(cmd,account,pwd,addr string,execCommandFunc ExecCommandFunc) error {
+// 执行远端shell
+func RemoteShell(cmd, account, pwd, addr string, execCommandFunc ExecCommandFunc) error {
 	//beego.Run()
-	session, err := SSHConnect( account, pwd, addr )
+	session, err := SSHConnect(account, pwd, addr)
 	if err != nil {
 		return err
 	}
 
 	defer session.Close()
-	if nil == execCommandFunc{
+	if nil == execCommandFunc {
 		session.Run(cmd)
 		return nil
 	}
@@ -104,10 +126,9 @@ func RemoteShell(cmd,account,pwd,addr string,execCommandFunc ExecCommandFunc) er
 	if err != nil {
 		return err
 	}
-	go func(){
+	go func() {
 		session.Run(cmd)
 	}()
-
 
 	//创建一个流来读取管道内内容，这里逻辑是通过一行一行的读取的
 	reader := bufio.NewReader(stdout)
@@ -134,8 +155,8 @@ func RemoteShell(cmd,account,pwd,addr string,execCommandFunc ExecCommandFunc) er
 	return nil
 }
 
-//建立一个ssh链接
-func SSHConnect( user, password, addr string) ( *ssh.Session, error ) {
+// 建立一个ssh链接
+func SSHConnect(user, password, addr string) (*ssh.Session, error) {
 	var (
 		auth         []ssh.AuthMethod
 		clientConfig *ssh.ClientConfig
@@ -152,14 +173,14 @@ func SSHConnect( user, password, addr string) ( *ssh.Session, error ) {
 	}
 
 	clientConfig = &ssh.ClientConfig{
-		User:               user,
-		Auth:               auth,
+		User: user,
+		Auth: auth,
 		// Timeout:             30 * time.Second,
-		HostKeyCallback:    hostKeyCallbk,
+		HostKeyCallback: hostKeyCallbk,
 	}
 
 	// connet to ssh
-	if client, err = ssh.Dial( "tcp", addr, clientConfig ); err != nil {
+	if client, err = ssh.Dial("tcp", addr, clientConfig); err != nil {
 		return nil, err
 	}
 
@@ -170,7 +191,7 @@ func SSHConnect( user, password, addr string) ( *ssh.Session, error ) {
 	return session, nil
 }
 
-//发送http请求
+// 发送http请求
 func Http(requestType, url, content string) (error, []byte) {
 	//创建一个请求
 	result := ""
@@ -194,19 +215,19 @@ func Http(requestType, url, content string) (error, []byte) {
 	return nil, body
 }
 
-//序列化json
+// 序列化json
 func MarshalJson(jsonData interface{}) string {
 	data, _ := json.Marshal(jsonData)
 	return string(data)
 }
 
-//反序列化json
+// 反序列化json
 func UnmarshJson(jsonData []byte, data interface{}) error {
 	return json.Unmarshal([]byte(jsonData), data)
 }
 
 var gobDataFilePath = "gobData" //gob文件夹名字
-//读取gob文件
+// 读取gob文件
 func ReadGobFile(fileName string, data interface{}) {
 	var dataFile = path.Join(gobDataFilePath, fileName)
 	_, err := os.Stat(dataFile)
@@ -227,7 +248,7 @@ func ReadGobFile(fileName string, data interface{}) {
 	}
 }
 
-//保存gob数据
+// 保存gob数据
 func SaveGobFile(fileName string, _data interface{}) (result string) {
 	//编码并存储
 	data, errEncodeUser := cache.GobEncode(_data)
@@ -247,7 +268,7 @@ func SaveGobFile(fileName string, _data interface{}) (result string) {
 	return
 }
 
-//判断文件是否存在
+// 判断文件是否存在
 func CheckFileIsExist(filename string) bool {
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
 		return false
@@ -273,37 +294,37 @@ func CopyFile(dstName, srcName string) (written int64, err error) {
 	return io.Copy(dst, src)
 }
 
-//判断文件夹是否存在
-func PathExists(path string)(bool,error){
-	_,err := os.Stat(path)
-	if err == nil{
-		return true,nil
+// 判断文件夹是否存在
+func PathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
 	}
 	//isnotexist来判断，是不是不存在的错误
-	if os.IsNotExist(err){	//如果返回的错误类型使用os.isNotExist()判断为true，说明文件或者文件夹不存在
-		return false,nil
+	if os.IsNotExist(err) { //如果返回的错误类型使用os.isNotExist()判断为true，说明文件或者文件夹不存在
+		return false, nil
 	}
-	return false,err//如果有错误了，但是不是不存在的错误，所以把这个错误原封不动的返回
+	return false, err //如果有错误了，但是不是不存在的错误，所以把这个错误原封不动的返回
 }
 
-//创建文件夹
-func CreateDir(_path string) error{
+// 创建文件夹
+func CreateDir(_path string) error {
 	if _, err := os.Stat(_path); os.IsNotExist(err) {
 		// 必须分成两步
 		// 先创建文件夹
 		mkErr := os.MkdirAll(_path, os.ModePerm)
-		if nil != mkErr{
+		if nil != mkErr {
 			return mkErr
 		}
 
 		// 再修改权限
 		return os.Chmod(_path, os.ModePerm)
-	}else{
+	} else {
 		return err
 	}
 }
 
-//计算文件md5值
+// 计算文件md5值
 func CalcMd5(filePath string) string {
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
