@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-//游戏服务器主机配置
+// 游戏服务器主机配置
 type SvrMachineModel struct {
 	MachineName string `json:"MachineName"` //服务器主机名
 	Platform    string `json:"Platform"`    //构建目标平台
@@ -24,7 +24,7 @@ var lastSvrMachineConfigFileName string             //上一次的服务器主�
 var svrMachineConfigMap map[string]*SvrMachineModel //服务器主机配置字典，key 服务器主机名 value:服务器主机配置
 var svrMachineDataLock sync.Mutex
 
-//有就更新，没有则添加
+// 有就更新，没有则添加
 func UpdateSvrMachineData(projectName, svrConfig string) (result string) {
 	svrMachineDataLock.Lock()
 	defer svrMachineDataLock.Unlock()
@@ -95,7 +95,7 @@ func UpdateSvrMachineData(projectName, svrConfig string) (result string) {
 	return "更新主机配置成功"
 }
 
-//获取一个项目所有服务器主机配置信息
+// 获取一个项目所有服务器主机配置信息
 func QuerySvrMachineDataOfOneProject(projectName, searchValue string) (result string) {
 	svrMachineDataLock.Lock()
 	defer svrMachineDataLock.Unlock()
@@ -106,8 +106,7 @@ func QuerySvrMachineDataOfOneProject(projectName, searchValue string) (result st
 
 	tpl := SvrMachineModel{}
 	for _, v := range svrMachineConfigMap {
-		if !JudgeIsSearchAllParam(searchValue) && v.MachineName != searchValue {
-			//数据量不大，这里就不再做获取到了退出循环吧
+		if !JudgeIsSearchAllParam(searchValue) && !strings.Contains(v.MachineName, searchValue) {
 			continue
 		}
 		tpl.MachineName = v.MachineName
@@ -127,7 +126,7 @@ func QuerySvrMachineDataOfOneProject(projectName, searchValue string) (result st
 	}
 }
 
-//获取服务器主机配置帮助提示
+// 获取服务器主机配置帮助提示
 func GetSvrMachineConfigHelp() string {
 	tpl := SvrMachineModel{
 		MachineName: "指令【" + commandName[CommandType_SvnProjectConfig] + "】为了节省关联字段，所以这里跟其一样名称关联",
@@ -142,7 +141,7 @@ func GetSvrMachineConfigHelp() string {
 		commandName[CommandType_SvrMachineConfig], tool.MarshalJson(tpl))
 }
 
-//获取服务器主机配置数据
+// 获取服务器主机配置数据
 func GetSvrMachineData(projectName, svrMachineName string) (err error, ip, port, account, psd, platform, svrRootPath string) {
 	svrMachineDataLock.Lock()
 	defer svrMachineDataLock.Unlock()
@@ -160,7 +159,7 @@ func GetSvrMachineData(projectName, svrMachineName string) (err error, ip, port,
 	return
 }
 
-//根据项目名获取svr文件名和数据
+// 根据项目名获取svr文件名和数据
 func getProjectSvrMachineData(projectName string) (string, map[string]*SvrMachineModel) {
 	svrDataFileName := "svrMachine.gob"
 	fileName := ProjectName2Md5(projectName) + svrDataFileName

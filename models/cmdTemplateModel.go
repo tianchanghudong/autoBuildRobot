@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-//模板指令
+// 模板指令
 type CmdTemplateModel struct {
 	Name     string `json:"Name"`     //模板名称
 	Cmd      string `json:"Cmd"`      //指令
@@ -19,7 +19,7 @@ var lastCmdTempFileName string              //上一个项目的模板指令数�
 var cmdTempMap map[string]*CmdTemplateModel //模板指令配置字典，key 模板名 value:指令
 var cmdTempDataLock sync.Mutex
 
-//有就更新，没有则添加
+// 有就更新，没有则添加
 func UpdateCmdTemp(projectName, cmdTempConfig string) (result string) {
 	cmdTempDataLock.Lock()
 	defer cmdTempDataLock.Unlock()
@@ -56,7 +56,7 @@ func UpdateCmdTemp(projectName, cmdTempConfig string) (result string) {
 	return
 }
 
-//获取一个项目所有模板指令配置信息
+// 获取一个项目所有模板指令配置信息
 func QueryCmdTempsDataByProject(projectName, searchValue string) (result string) {
 	cmdTempDataLock.Lock()
 	defer cmdTempDataLock.Unlock()
@@ -67,8 +67,7 @@ func QueryCmdTempsDataByProject(projectName, searchValue string) (result string)
 	}
 
 	for _, v := range cmdTempMap {
-		if !JudgeIsSearchAllParam(searchValue) && v.Name != searchValue {
-			//数据量不大，这里就不再做获取到了退出循环吧
+		if !JudgeIsSearchAllParam(searchValue) && !strings.Contains(v.Name, searchValue) {
 			continue
 		}
 		result += fmt.Sprintln(tool.MarshalJson(v) + "\n")
@@ -80,32 +79,32 @@ func QueryCmdTempsDataByProject(projectName, searchValue string) (result string)
 	}
 }
 
-//获取模板指令配置帮助提示
+// 获取模板指令配置帮助提示
 func GetCmdTempConfigHelp() string {
 	tpl := CmdTemplateModel{
-		Name: "预定义指令名称，如：开发合并到测试",
-		Cmd:  "预定义指令，如：分支合并：开发分支合并到策划分支-》分支合并：策划分支合并到测试分支",
+		Name:     "预定义指令名称，如：开发合并到测试",
+		Cmd:      "预定义指令，如：分支合并：开发分支合并到策划分支-》分支合并：策划分支合并到测试分支",
 		Describe: "预定义指令描述信息",
 	}
 	jsonTpl := tool.MarshalJson(tpl)
-	jsonTpl = strings.ReplaceAll(jsonTpl,"》",">")
+	jsonTpl = strings.ReplaceAll(jsonTpl, "》", ">")
 	return fmt.Sprintf("模板指令就是预定义一些指令。\n配置例子：\n【%s：%s】 \n如多条指令用英文分号拼接",
 		commandName[CommandType_TemplateCmd], jsonTpl)
 }
 
-//获取模板指令
-func GetTemplateCmd(projectName,cmdTempName string) string {
+// 获取模板指令
+func GetTemplateCmd(projectName, cmdTempName string) string {
 	//获取模板指令
 	cmdTempDataLock.Lock()
 	defer cmdTempDataLock.Unlock()
-	svnProjectModel := getCmdTempData(projectName,cmdTempName)
+	svnProjectModel := getCmdTempData(projectName, cmdTempName)
 	if nil == svnProjectModel {
 		return ""
 	}
 	return svnProjectModel.Cmd
 }
 
-//获取工程配置
+// 获取工程配置
 func getCmdTempData(projectName, cmdTempName string) *CmdTemplateModel {
 	if projectName == "" || cmdTempName == "" {
 		return nil
@@ -119,7 +118,7 @@ func getCmdTempData(projectName, cmdTempName string) *CmdTemplateModel {
 	}
 }
 
-//根据webHook获取该项目模板指令数据文件名和数据
+// 根据webHook获取该项目模板指令数据文件名和数据
 func getCmdTempsDataByProjectName(projectName string) (string, map[string]*CmdTemplateModel) {
 	cmdTempDataFileName := "cmdTemp.gob"
 	fileName := ProjectName2Md5(projectName) + cmdTempDataFileName

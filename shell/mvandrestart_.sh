@@ -19,6 +19,7 @@ tar -czvf ${backfile} --exclude=${excludedir} --exclude=${zipfile} ${dirname}
 unzip -o ${zipfile} -d ${dirname}
 
 #后台是拷贝文件夹下压缩包，所以这里拷贝一下
+sleep 2
 mv -f ${zipfile} ${dirname}
 
 #启动

@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-//svn工程，区别于ProjectModel，一个ProjectModel对应多个SvnProjectModel
+// svn工程，区别于ProjectModel，一个ProjectModel对应多个SvnProjectModel
 type SvnProjectModel struct {
 	ProjectName        string `json:"ProjectName"`        //工程名称
 	ProjectPath        string `json:"ProjectPath"`        //工程地址
@@ -23,7 +23,7 @@ var svnProjectMap map[string]*SvnProjectModel //项目分支配置字典，key �
 var mergeFlags = []string{"合并到", "合并"}        //项目合并标识，按顺序分割获取两个分支
 var svnProjectDataLock sync.Mutex
 
-//有就更新，没有则添加
+// 有就更新，没有则添加
 func UpdateSvnProject(projectName, svnProjectConfig string) (result string) {
 	svnProjectDataLock.Lock()
 	defer svnProjectDataLock.Unlock()
@@ -71,7 +71,7 @@ func UpdateSvnProject(projectName, svnProjectConfig string) (result string) {
 	return
 }
 
-//获取一个项目所有分支配置信息
+// 获取一个项目所有分支配置信息
 func QuerySvnProjectsDataByProject(projectName, searchValue string) (result string) {
 	svnProjectDataLock.Lock()
 	defer svnProjectDataLock.Unlock()
@@ -82,8 +82,7 @@ func QuerySvnProjectsDataByProject(projectName, searchValue string) (result stri
 	}
 
 	for _, v := range svnProjectMap {
-		if !JudgeIsSearchAllParam(searchValue) && v.ProjectName != searchValue {
-			//数据量不大，这里就不再做获取到了退出循环吧
+		if !JudgeIsSearchAllParam(searchValue) && !strings.Contains(v.ProjectName, searchValue) {
 			continue
 		}
 		result += fmt.Sprintln(tool.MarshalJson(v) + "\n")
@@ -95,7 +94,7 @@ func QuerySvnProjectsDataByProject(projectName, searchValue string) (result stri
 	}
 }
 
-//获取svn工程配置帮助提示
+// 获取svn工程配置帮助提示
 func GetSvnProjectConfigHelp() string {
 	tpl := SvnProjectModel{
 		ProjectName:        "svn工程名称",
@@ -106,7 +105,7 @@ func GetSvnProjectConfigHelp() string {
 		commandName[CommandType_SvnProjectConfig], tool.MarshalJson(tpl))
 }
 
-//获取合并指令帮助
+// 获取合并指令帮助
 func GetMergeCommandHelp() string {
 	return fmt.Sprintf(`目前前后端都定为5大分支:
 1、临时开发分支（跨版本迭代），
@@ -119,17 +118,17 @@ func GetMergeCommandHelp() string {
 		commandName[CommandType_SvnMerge], commandName[CommandType_SvnProjectConfig])
 }
 
-//获取客户端构建帮助
+// 获取客户端构建帮助
 func GetClientBuildCommandHelp() string {
 	return fmt.Sprintf(`根据参数，执行打lua资源、打整个资源，出白包、以及各个渠道包
 例：【%s：外网测试包,BuildLuaCode】或【%s：外网测试包,0】
 参数1是指令【%s】配置的ProjectName
 参数2是指令【%s】配置的AutoBuildMethodList方法数组中某个构建方法或其索引
 参数3选填，目前只有固定dev表示是development build，不填则表示默认的release build`,
-		commandName[CommandType_AutoBuildClient], commandName[CommandType_AutoBuildClient], commandName[CommandType_SvnProjectConfig],commandName[CommandType_ProjectConfig])
+		commandName[CommandType_AutoBuildClient], commandName[CommandType_AutoBuildClient], commandName[CommandType_SvnProjectConfig], commandName[CommandType_ProjectConfig])
 }
 
-//判断工程是否存在
+// 判断工程是否存在
 func JudgeSvnProjectIsExist(projectName, svnProjectName string) bool {
 	svnProjectDataLock.Lock()
 	defer svnProjectDataLock.Unlock()
@@ -137,18 +136,18 @@ func JudgeSvnProjectIsExist(projectName, svnProjectName string) bool {
 	return nil != projectModel
 }
 
-//获取svn地址
-func GetSvnProjectInfo(projectName, svnProjectName string) (err error,projectPath,svnUrl,svnExternalKeyword string) {
+// 获取svn地址
+func GetSvnProjectInfo(projectName, svnProjectName string) (err error, projectPath, svnUrl, svnExternalKeyword string) {
 	svnProjectDataLock.Lock()
 	defer svnProjectDataLock.Unlock()
 	svnProjectModel := getSvnProjectData(projectName, svnProjectName)
 	if nil == svnProjectModel {
-		return errors.New(fmt.Sprintf("不存在svn%s工程，请添加",svnProjectName)),"","",""
+		return errors.New(fmt.Sprintf("不存在svn%s工程，请添加", svnProjectName)), "", "", ""
 	}
-	return nil,svnProjectModel.ProjectPath,svnProjectModel.SvnUrl,svnProjectModel.SvnExternalKeyword
+	return nil, svnProjectModel.ProjectPath, svnProjectModel.SvnUrl, svnProjectModel.SvnExternalKeyword
 }
 
-//获取上次获取svn日志时间
+// 获取上次获取svn日志时间
 func GetSvnLogTime(projectName, svnProjectName string) int64 {
 	svnProjectDataLock.Lock()
 	defer svnProjectDataLock.Unlock()
@@ -160,7 +159,7 @@ func GetSvnLogTime(projectName, svnProjectName string) int64 {
 	return svnProjectModel.LastGetSvnLogTime
 }
 
-//保存获取svn日志时间
+// 保存获取svn日志时间
 func SaveSvnLogTime(projectName, svnProjectName string, getLogTime int64) {
 	svnProjectDataLock.Lock()
 	defer svnProjectDataLock.Unlock()
@@ -174,7 +173,7 @@ func SaveSvnLogTime(projectName, svnProjectName string, getLogTime int64) {
 	}
 }
 
-//获取工程配置
+// 获取工程配置
 func getSvnProjectData(projectName, svnProjectName string) *SvnProjectModel {
 	if projectName == "" || svnProjectName == "" {
 		return nil
@@ -188,7 +187,7 @@ func getSvnProjectData(projectName, svnProjectName string) *SvnProjectModel {
 	}
 }
 
-//根据webHook获取该项目svn工程数据文件名和数据
+// 根据webHook获取该项目svn工程数据文件名和数据
 func getSvnProjectsDataByProjectName(projectName string) (string, map[string]*SvnProjectModel) {
 	svnProjectDataFileName := "svnProject.gob"
 	fileName := ProjectName2Md5(projectName) + svnProjectDataFileName

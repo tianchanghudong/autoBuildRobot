@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-//用户组
+// 用户组
 type UserGroupModel struct {
 	GroupName          string   `json:"GroupName"`          //组名
 	CommandPermissions []int    `json:"CommandPermissions"` //指令权限数组
@@ -24,7 +24,7 @@ func init() {
 	tool.ReadGobFile(userGroupFileName, &userGroupMap)
 }
 
-//有就更新，没有则添加
+// 有就更新，没有则添加
 func UpdateUserGroup(groupConfig string) (result string, err error) {
 	userGroupDataLock.Lock()
 	defer userGroupDataLock.Unlock()
@@ -57,10 +57,10 @@ func UpdateUserGroup(groupConfig string) (result string, err error) {
 				if newGroupModel.GroupName == "" {
 					newGroupModel.GroupName = _groupModel.GroupName
 				}
-				if  len(newGroupModel.ProjectPermissions) <= 0 {
+				if len(newGroupModel.ProjectPermissions) <= 0 {
 					newGroupModel.ProjectPermissions = _groupModel.ProjectPermissions
 				}
-				if  len(newGroupModel.CommandPermissions) <= 0 {
+				if len(newGroupModel.CommandPermissions) <= 0 {
 					newGroupModel.CommandPermissions = _groupModel.CommandPermissions
 				}
 			}
@@ -78,7 +78,7 @@ func UpdateUserGroup(groupConfig string) (result string, err error) {
 	return
 }
 
-//查找数据
+// 查找数据
 func QueryUserGroupDatas(searchParams string) string {
 	if JudgeIsSearchAllParam(searchParams) {
 		return GetAllUserGroupInfo()
@@ -87,7 +87,7 @@ func QueryUserGroupDatas(searchParams string) string {
 	}
 }
 
-//获取一个项目所有CDN配置信息
+// 获取一个项目所有CDN配置信息
 func GetAllUserGroupInfo() string {
 	cdnDataLock.Lock()
 	defer cdnDataLock.Unlock()
@@ -106,7 +106,7 @@ func GetAllUserGroupInfo() string {
 	return result
 }
 
-//获取项目配置数据
+// 获取项目配置数据
 func GetUserGroupInfoByName(groupName string) (result string) {
 	userGroupDataLock.Lock()
 	defer userGroupDataLock.Unlock()
@@ -114,11 +114,11 @@ func GetUserGroupInfoByName(groupName string) (result string) {
 		return tool.MarshalJson(_group)
 	}
 
-	//如果不存在项目，则输出默认值
+	//如果不存在，则输出默认值
 	return "用户组不存在，请添加：" + GetUserGroupConfigHelp()
 }
 
-//获取用户组帮助信息
+// 获取用户组帮助信息
 func GetUserGroupConfigHelp() (result string) {
 	group := new(UserGroupModel)
 	group.GroupName = "用户组名"
@@ -130,7 +130,7 @@ func GetUserGroupConfigHelp() (result string) {
 		commandName[CommandType_UserGroup], tool.MarshalJson(group))
 }
 
-//获取指令权限
+// 获取指令权限
 func GetUserGroupPermissions(groupName string) (error, []int, []string) {
 	userGroupDataLock.Lock()
 	defer userGroupDataLock.Unlock()
@@ -140,7 +140,7 @@ func GetUserGroupPermissions(groupName string) (error, []int, []string) {
 	return errors.New("用户组不存在,请配置！！！"), make([]int, 0), make([]string, 0)
 }
 
-//获取所有权限描述
+// 获取所有权限描述
 func GetAllPermissionDesc(groupName string) (err error, commandPermission, projectPermission string) {
 	userGroupDataLock.Lock()
 	defer userGroupDataLock.Unlock()
@@ -156,7 +156,7 @@ func GetAllPermissionDesc(groupName string) (err error, commandPermission, proje
 	return errors.New("用户组不存在,请配置！！！"), "", ""
 }
 
-//判断用户组是否存在
+// 判断用户组是否存在
 func JudgeUserGroupIsExist(groupName string) bool {
 	userGroupDataLock.Lock()
 	defer userGroupDataLock.Unlock()

@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-//CDN配置
+// CDN配置
 type CdnModel struct {
 	CdnName          string   `json:"CdnName"`          //工程名称（对应SvnProjectModel工程名）
 	CdnType          string   `json:"CdnType"`          //cdn类型,对应cdn.CdnType类型
@@ -27,7 +27,7 @@ var cdnDataLock sync.Mutex
 
 const secretFlag = "***"
 
-//有就更新，没有则添加
+// 有就更新，没有则添加
 func UpdateCdn(projectName, cdnConfig string) (result string) {
 	cdnDataLock.Lock()
 	defer cdnDataLock.Unlock()
@@ -118,7 +118,7 @@ func UpdateCdn(projectName, cdnConfig string) (result string) {
 	return "更新cdn配置成功"
 }
 
-//获取一个项目所有CDN配置信息
+// 获取一个项目所有CDN配置信息
 func QueryCdnDataOfOneProject(projectName, searchValue string) (result string) {
 	cdnDataLock.Lock()
 	defer cdnDataLock.Unlock()
@@ -129,8 +129,7 @@ func QueryCdnDataOfOneProject(projectName, searchValue string) (result string) {
 
 	tpl := CdnModel{}
 	for _, v := range cdnConfigMap {
-		if !JudgeIsSearchAllParam(searchValue) && v.CdnName != searchValue {
-			//数据量不大，这里就不再做获取到了退出循环吧
+		if !JudgeIsSearchAllParam(searchValue) && !strings.Contains(v.CdnName, searchValue) {
 			continue
 		}
 		tpl.CdnName = v.CdnName
@@ -150,7 +149,7 @@ func QueryCdnDataOfOneProject(projectName, searchValue string) (result string) {
 	}
 }
 
-//获取cdn配置帮助提示
+// 获取cdn配置帮助提示
 func GetCdnConfigHelp() string {
 	tpl := CdnModel{
 		CdnName:    "指令【" + commandName[CommandType_SvnProjectConfig] + "】为了节省关联字段，所以用名称一样关联",
@@ -161,7 +160,7 @@ func GetCdnConfigHelp() string {
 	return fmt.Sprintf("cdn配置理解为热更需要的svn工程配置的补充字段吧\n例：\n【%s：%s】 \n如果多个配置用分号分割", commandName[CommandType_CdnConfig], tool.MarshalJson(tpl))
 }
 
-//获取CDN配置数据
+// 获取CDN配置数据
 func GetCdnData(projectName, cdnName string) (
 	err error, cdnType, urlOfBucket, bucketName, accessKeyID, accessKeySecret, backupPath string, resPaths []string) {
 	cdnDataLock.Lock()
@@ -181,7 +180,7 @@ func GetCdnData(projectName, cdnName string) (
 	return
 }
 
-//根据项目名获取cdn文件名和数据
+// 根据项目名获取cdn文件名和数据
 func getProjectCdnsData(projectName string) (string, map[string]*CdnModel) {
 	cdnDataFileName := "cdn.gob"
 	fileName := ProjectName2Md5(projectName) + cdnDataFileName

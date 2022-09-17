@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-//游戏服务器进程配置
+// 游戏服务器进程配置
 type GameSvrProgressModel struct {
 	SvrProgressName       string `json:"SvrProgressName"`       //服务进程名称
 	SvrProgressDirName    string `json:"SvrProgressDirName"`    //服务进程文件夹名
@@ -22,7 +22,7 @@ var lastSvrProgressConfigFileName string                  //上一次的服务�
 var svrProgressConfigMap map[string]*GameSvrProgressModel //服务进程配置字典，key 服务进程名 value:服务进程配置
 var svrProgressDataLock sync.Mutex
 
-//有就更新，没有则添加
+// 有就更新，没有则添加
 func UpdateSvrProgressData(projectName, svrConfig string) (result string) {
 	svrProgressDataLock.Lock()
 	defer svrProgressDataLock.Unlock()
@@ -81,7 +81,7 @@ func UpdateSvrProgressData(projectName, svrConfig string) (result string) {
 	return "更新svr配置成功"
 }
 
-//获取一个项目所有服务进程配置信息
+// 获取一个项目所有服务进程配置信息
 func QueryProgressDataOfOneProject(projectName, searchValue string) (result string) {
 	svrProgressDataLock.Lock()
 	defer svrProgressDataLock.Unlock()
@@ -92,8 +92,7 @@ func QueryProgressDataOfOneProject(projectName, searchValue string) (result stri
 
 	tpl := GameSvrProgressModel{}
 	for _, v := range svrProgressConfigMap {
-		if !JudgeIsSearchAllParam(searchValue) && v.SvrProgressName != searchValue {
-			//数据量不大，这里就不再做获取到了退出循环吧
+		if !JudgeIsSearchAllParam(searchValue) && !strings.Contains(v.SvrProgressName, searchValue) {
 			continue
 		}
 		tpl.SvrProgressName = v.SvrProgressName
@@ -110,7 +109,7 @@ func QueryProgressDataOfOneProject(projectName, searchValue string) (result stri
 	}
 }
 
-//获取服务进程配置帮助提示
+// 获取服务进程配置帮助提示
 func GetSvrProgressConfigHelp() string {
 	tpl := GameSvrProgressModel{
 		SvrProgressName:       "游戏服务进程名",
@@ -123,7 +122,7 @@ func GetSvrProgressConfigHelp() string {
 		commandName[CommandType_SvrProgressConfig], tool.MarshalJson(tpl))
 }
 
-//获取服务进程配置数据
+// 获取服务进程配置数据
 func GetSvrProgressData(projectName, svrProgressName string) (err error, dirName, zipFileNameWithoutExt, zipFileList, zipDirList string) {
 	svrProgressDataLock.Lock()
 	defer svrProgressDataLock.Unlock()
@@ -141,7 +140,7 @@ func GetSvrProgressData(projectName, svrProgressName string) (err error, dirName
 	return
 }
 
-//根据项目名获取svr文件名和数据
+// 根据项目名获取svr文件名和数据
 func getProjectSvrProgressData(projectName string) (string, map[string]*GameSvrProgressModel) {
 	svrDataFileName := "svrProgress.gob"
 	fileName := ProjectName2Md5(projectName) + svrDataFileName
